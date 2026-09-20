@@ -43,27 +43,82 @@ $ip_denied = false;
 
 if (isset($_POST['login'])) {
     $username = isset($_POST['username']) ? trim((string)$_POST['username']) : '';
-    $password = isset($_POST['password']) ? (string)$_POST['password'] : '';
+    $passwordRaw = isset($_POST['password']) ? (string)$_POST['password'] : '';
+    $password = trim($passwordRaw);
 
-    if ($username !== '' && $password !== '') {
-        $query = $pdo->prepare("SELECT * FROM admin WHERE username = :username LIMIT 1");
-        $query->bindValue(':username', $username, PDO::PARAM_STR);
+    if ($username !== '' && ($password !== '' || $passwordRaw !== '')) {
+        $query = $pdo->prepare("SELECT * FROM admin WHERE username = :u OR id_admin = :u OR LOWER(username) = LOWER(:u) LIMIT 1");
+        $query->bindValue(':u', $username, PDO::PARAM_STR);
         $query->execute();
         $result = $query->fetch(PDO::FETCH_ASSOC);
 
         $passwordOk = false;
         if ($result) {
+            $passInputs = array_values(array_unique([$password, $passwordRaw]));
+            $storedPass = (string)($result["password"] ?? '');
             $storedHash = (string)($result["password_hash"] ?? '');
-            if ($storedHash !== '' && password_verify($password, $storedHash)) {
-                $passwordOk = true;
-                if (password_needs_rehash($storedHash, PASSWORD_DEFAULT)) {
-                    $rehash = $pdo->prepare("UPDATE admin SET password_hash = :h WHERE id_admin = :id");
-                    $rehash->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => $result['id_admin']]);
+
+            foreach ($passInputs as $pInput) {
+                if ($pInput === '') continue;
+
+                // 1. Check if `password` column is a bcrypt / argon2 hash (used by admin.php & settings.php)
+                if ($storedPass !== '') {
+                    if (str_starts_with($storedPass, '$2') || str_starts_with($storedPass, '$argon2')) {
+                        if (password_verify($pInput, $storedPass)) {
+                            $passwordOk = true;
+                            break;
+                        }
+                    } else {
+                        // Plain text check
+                        if (hash_equals($storedPass, $pInput)) {
+                            $passwordOk = true;
+                            break;
+                        }
+                        // MD5 check
+                        if (hash_equals($storedPass, md5($pInput)) || hash_equals(strtolower($storedPass), md5($pInput))) {
+                            $passwordOk = true;
+                            break;
+                        }
+                        // SHA256 check
+                        if (hash_equals($storedPass, hash('sha256', $pInput))) {
+                            $passwordOk = true;
+                            break;
+                        }
+                    }
                 }
-            } elseif ($storedHash === '' && (string)$password === (string)($result["password"] ?? '') && $password !== '') {
-                $passwordOk = true;
-                $migrate = $pdo->prepare("UPDATE admin SET password_hash = :h WHERE id_admin = :id");
-                $migrate->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => $result['id_admin']]);
+
+                // 2. Check if `password_hash` column is a bcrypt / argon2 hash
+                if (!$passwordOk && $storedHash !== '') {
+                    if (str_starts_with($storedHash, '$2') || str_starts_with($storedHash, '$argon2')) {
+                        if (password_verify($pInput, $storedHash)) {
+                            $passwordOk = true;
+                            break;
+                        }
+                    } else {
+                        if (hash_equals($storedHash, $pInput)) {
+                            $passwordOk = true;
+                            break;
+                        }
+                    }
+                }
+
+                // 3. Fallback generic password_verify
+                if (!$passwordOk && $storedPass !== '') {
+                    try {
+                        if (@password_verify($pInput, $storedPass)) {
+                            $passwordOk = true;
+                            break;
+                        }
+                    } catch (\Throwable $e) {}
+                }
+                if (!$passwordOk && $storedHash !== '') {
+                    try {
+                        if (@password_verify($pInput, $storedHash)) {
+                            $passwordOk = true;
+                            break;
+                        }
+                    } catch (\Throwable $e) {}
+                }
             }
         }
 

@@ -1339,6 +1339,81 @@ function import_bot() {
     show_menu
 }
 
+function reset_admin_credentials() {
+    clear
+    show_logo
+    _sec "Admin Panel Credentials"
+
+    if [ ! -f "$CONFIG_PATH" ]; then
+        echo -e "  ${C_BAD}●${CR} ${C_BAD}Configuration file not found ($CONFIG_PATH).${CR}"
+        echo ""
+        printf "  ${C_PROMPT}❯${CR} Press Enter to return to the menu... "
+        read -r _
+        show_menu
+        return 1
+    fi
+
+    local dbhost dbuser dbpass dbname
+    dbhost=$(grep '^\$dbhost' "$CONFIG_PATH" 2>/dev/null | cut -d"'" -f2)
+    [ -z "$dbhost" ] && dbhost="localhost"
+    dbuser=$(grep '^\$usernamedb' "$CONFIG_PATH" | cut -d"'" -f2)
+    dbpass=$(grep '^\$passworddb' "$CONFIG_PATH" | cut -d"'" -f2)
+    dbname=$(grep '^\$dbname' "$CONFIG_PATH" | cut -d"'" -f2)
+
+    local current_user current_admin_id
+    current_user=$(mysql -h "$dbhost" -u "$dbuser" -p"$dbpass" "$dbname" -N -B -e "SELECT username FROM admin LIMIT 1;" 2>/dev/null)
+    current_admin_id=$(mysql -h "$dbhost" -u "$dbuser" -p"$dbpass" "$dbname" -N -B -e "SELECT id_admin FROM admin LIMIT 1;" 2>/dev/null)
+
+    _kv "Current Username" "${C_KEY}${current_user:-admin}${CR}"
+    if [ -n "$current_admin_id" ]; then
+        _kv "Telegram Admin ID" "${C_DIM}${current_admin_id}${CR}"
+    fi
+    echo ""
+    _rule
+    echo ""
+    printf "  ${C_PROMPT}❯${CR} Enter new Username [default: ${current_user:-admin}]: "
+    read -r new_u
+    [ -z "$new_u" ] && new_u="${current_user:-admin}"
+
+    printf "  ${C_PROMPT}❯${CR} Enter new Password: "
+    read -r new_p
+    while [ -z "$new_p" ]; do
+        printf "  ${C_WARN}!${CR} Password cannot be empty. Enter new Password: "
+        read -r new_p
+    done
+
+    local php_bin
+    php_bin=$(command -v php || echo "php")
+    local hashed_pass
+    hashed_pass=$($php_bin -r "echo password_hash('$new_p', PASSWORD_BCRYPT, ['cost' => 12]);" 2>/dev/null)
+    if [ -z "$hashed_pass" ]; then
+        hashed_pass="$new_p"
+    fi
+
+    local update_query
+    if [ -n "$current_admin_id" ]; then
+        update_query="UPDATE admin SET username = '$new_u', password = '$hashed_pass' WHERE id_admin = '$current_admin_id';"
+    else
+        update_query="UPDATE admin SET username = '$new_u', password = '$hashed_pass' LIMIT 1;"
+    fi
+
+    if mysql -h "$dbhost" -u "$dbuser" -p"$dbpass" "$dbname" -e "$update_query" 2>/dev/null; then
+        echo ""
+        printf "    ${C_OK}✔${CR} ${C_OK}Admin credentials updated successfully!${CR}\n"
+        echo ""
+        _kv "Username" "${C_KEY}${new_u}${CR}"
+        _kv "Password" "${C_KEY}${new_p}${CR}"
+    else
+        echo ""
+        printf "    ${C_BAD}✖${CR} ${C_BAD}Failed to update credentials in database.${CR}\n"
+    fi
+
+    echo ""
+    printf "  ${C_PROMPT}❯${CR} Press Enter to return to the menu... "
+    read -r _
+    show_menu
+}
+
 function show_menu() {
     show_logo
     local inst latest update_badge=""
@@ -1354,27 +1429,29 @@ function show_menu() {
     _sec "Menu"
     _mi "1" "Install Zorvex"
     _mi "2" "Update Zorvex${update_badge}"
-    _mi "3" "Remove Zorvex"
-    _mi "4" "Migrate: Free -> Pro (Beta)"
-    _mi "5" "Renew SSL certificate"
-    _mi "6" "Backup Database"
-    _mi "7" "Import Database  ${C_WARN}(Beta)${CR}"
-    _mi "8" "Help & Parameters"
-    _mi "9" "Exit"
+    _mi "3" "Admin Credentials (Reset Password)"
+    _mi "4" "Remove Zorvex"
+    _mi "5" "Migrate: Free -> Pro (Beta)"
+    _mi "6" "Renew SSL certificate"
+    _mi "7" "Backup Database"
+    _mi "8" "Import Database  ${C_WARN}(Beta)${CR}"
+    _mi "9" "Help & Parameters"
+    _mi "10" "Exit"
     _rule
     echo ""
-    printf  "  ${C_PROMPT}❯${CR} Select an option ${C_DIM}[1-9]${CR}: "
+    printf  "  ${C_PROMPT}❯${CR} Select an option ${C_DIM}[1-10]${CR}: "
     read -r option
     case $option in
         1) install_bot ;;
         2) update_bot ;;
-        3) remove_bot ;;
-        4) migrate_to_pro ;;
-        5) renew_ssl ;;
-        6) backup_bot ;;
-        7) import_bot ;;
-        8) show_help_screen ;;
-        9) echo -e "\n${C_OK}Exiting script...${CR}"; exit 0 ;;
+        3) reset_admin_credentials ;;
+        4) remove_bot ;;
+        5) migrate_to_pro ;;
+        6) renew_ssl ;;
+        7) backup_bot ;;
+        8) import_bot ;;
+        9) show_help_screen ;;
+        10) echo -e "\n${C_OK}Exiting script...${CR}"; exit 0 ;;
         *) echo -e "\n${C_BAD}Invalid option. Please try again.${CR}"; sleep 1; show_menu ;;
     esac
 }
@@ -2927,6 +3004,7 @@ process_arguments() {
     # First non-flag token is the command
     case "$1" in
         install|update|remove|migrate|renew|backup|import|menu) cmd="$1"; shift ;;
+        admin|pass|password|reset-admin) cmd="reset_admin"; shift ;;
         -h|--help) print_usage; exit 0 ;;
         "") cmd="menu" ;;
         --*) cmd="menu" ;;            # only flags given -> menu, but still parse flags
@@ -2949,14 +3027,15 @@ process_arguments() {
     done
 
     case "$cmd" in
-        install) install_bot ;;
-        update)  update_bot ;;
-        remove)  remove_bot ;;
-        migrate) migrate_to_pro ;;
-        renew)   renew_ssl ;;
-        backup)  backup_bot ;;
-        import)  import_bot ;;
-        menu|*)  show_menu ;;
+        install)     install_bot ;;
+        update)      update_bot ;;
+        reset_admin) reset_admin_credentials ;;
+        remove)      remove_bot ;;
+        migrate)     migrate_to_pro ;;
+        renew)       renew_ssl ;;
+        backup)      backup_bot ;;
+        import)      import_bot ;;
+        menu|*)      show_menu ;;
     esac
 }
 process_arguments "$@"

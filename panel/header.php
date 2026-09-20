@@ -15,7 +15,7 @@ $__panelVersion = (stripos($__panelVersionRaw, 'v') === 0) ? $__panelVersionRaw 
 
 if (isset($_SESSION["user"])) {
     if (isset($pdo) && $pdo instanceof PDO) {
-        $__stmt_admin_ip = $pdo->prepare("SELECT iplogin FROM admin WHERE username = :username LIMIT 1");
+        $__stmt_admin_ip = $pdo->prepare("SELECT iplogin FROM admin WHERE username = :username OR id_admin = :username LIMIT 1");
         $__stmt_admin_ip->bindValue(':username', $_SESSION["user"], PDO::PARAM_STR);
         $__stmt_admin_ip->execute();
         $__raw_admin_ip = $__stmt_admin_ip->fetchColumn();
