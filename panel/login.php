@@ -152,7 +152,17 @@ if (isset($_POST['login'])) {
 
 
             session_regenerate_id(true);
-            $_SESSION["user"] = $result["username"];
+            $authUsername = trim((string)($result["username"] ?? ''));
+            if ($authUsername === '') {
+                $authUsername = !empty($result["id_admin"]) ? (string)$result["id_admin"] : 'admin';
+                try {
+                    $pdo->prepare("UPDATE admin SET username = :u WHERE id_admin = :id")->execute([
+                        ':u' => $authUsername,
+                        ':id' => $result["id_admin"]
+                    ]);
+                } catch (\Throwable $e) {}
+            }
+            $_SESSION["user"] = $authUsername;
 
 
             session_write_close();

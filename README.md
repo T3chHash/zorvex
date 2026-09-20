@@ -15,7 +15,7 @@
 ---
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3-777bb4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
-[![Release](https://img.shields.io/badge/Release-v0.0.5-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
+[![Release](https://img.shields.io/badge/Release-v1.0.0-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
 [![Telegram Mini App](https://img.shields.io/badge/Telegram-Mini%20App%20Ready-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://telegram.org)
 [![Supported OS](https://img.shields.io/badge/Ubuntu-20.04%20%7C%2022.04%20%7C%2024.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![License](https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge)](LICENSE)
@@ -40,15 +40,16 @@
 ---
 
 <a name="-معرفی-پلتفرم-زوروکس-پرو"></a>
-## 💎 معرفی پلتفرم زوروکس پرو (نسخه 0.0.5)
+## 💎 معرفی پلتفرم زوروکس پرو (نسخه پایدار 1.0.0)
 
 **پلتفرم زوروکس (Zorvex Pro)** نسل نوینی از سیستم‌های مدیریت، فروش و مانیتورینگ سرویس‌های وی‌پی‌ان بر بستر پیام‌رسان تلگرام است. این پلتفرم با ترکیب رابط کاربری مدرن نئونی، مینی‌اپلیکیشن مستقل تک‌صفحه‌ای (SPA) و پنل مدیریتی غنی، تمامی نیازهای یک سرور و ارائه‌دهنده سرویس اینترنت آزاد را پوشش می‌دهد.
 
-### ✨ امکانات و قابلیت‌های متمایز نسخه 0.0.5:
-1. **رفع باگ‌ها و ارتقای پایداری پنل (Stability & Bug Fixes):**
-   - پیاده‌سازی توابع سراسری حل کننده ارورهای ۵۰۰ نظیر `zorvex_textbot_get`، `zorvex_render_text`، `zorvex_bust_bot_selectcache` و `zorvex_public_purchase_log_event`.
-   - یکپارچه‌سازی کامل برندینگ Zorvex Pro در تمامی صفحات، عناوین صفحات، فرم ورود و اعلان‌ها.
-   - بهینه‌سازی سیستم لاگین و امنیت نشست‌های ادمین همراه با بررسی آی‌پی‌های مجاز.
+### ✨ امکانات و قابلیت‌های متمایز نسخه 1.0.0:
+1. **رفع کامل باگ‌های ورود و مدیریت پسورد (Authentication & Security):**
+   - اصلاح اساسی تابع بررسی پسورد در `login.php`؛ اکنون اعتبارسنجی الگوریتم `bcrypt` و رمزهای خام با بالاترین دقت انجام می‌شود.
+   - ورود دوگانه با نام کاربری یا شناسه عددی تلگرام ادمین (`id_admin`).
+   - قابلیت مشاهده و تغییر آنی رمز عبور ادمین از ترمینال لینوکس با دستور `zorvex pass` یا انتخاب گزینه `[3]` در منوی اصلی.
+   - رفع کامل خطاهای Fatal 500 در پاسخ به تیکت‌ها و تست اکانت‌ها با توابع کمکی یکپارچه.
 
 2. **مینی‌اپلیکیشن تلگرام (Telegram Mini App):**
    - تم سایبردارک اختصاصی با قابلیت انتخاب رنگ‌های نئونی پویا (Cyan, Electric Violet, Emerald, Crimson).
