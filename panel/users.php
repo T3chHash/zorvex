@@ -1,228 +1,185 @@
 <?php
-require_once __DIR__ . '/inc/config.php';
-require_once __DIR__ . '/inc/icons.php';
-require_auth();
+ini_set('session.cookie_samesite', 'Lax');
+ini_set('session.cookie_httponly', '1');
+session_start();
+require_once __DIR__ . '/../config.php';
 
-$search = trim($_GET['q'] ?? '');
-$status = $_GET['status'] ?? '';
-$role = $_GET['role'] ?? '';
-$page = max(1, (int) ($_GET['page'] ?? 1));
-$perPage = 25;
-$offset = ($page - 1) * $perPage;
+require_once __DIR__ . '/lib/icons.php';
+require_once __DIR__ . '/lib/pagination.php';
+require_once __DIR__ . '/lib/search_filter.php';
+require_once __DIR__ . '/lib/csrf.php';
 
-$where = [];
-$params = [];
+$query = $pdo->prepare("SELECT * FROM admin WHERE username=:username");
+$query->bindParam("username", $_SESSION["user"], PDO::PARAM_STR);
+$query->execute();
+$result = $query->fetch(PDO::FETCH_ASSOC);
 
-if ($search !== '') {
-    $where[] = "(id LIKE ? OR COALESCE(username,'') LIKE ? OR COALESCE(namecustom,'') LIKE ? OR COALESCE(number,'') LIKE ?)";
-    $params = ["%$search%", "%$search%", "%$search%", "%$search%"];
+if (!isset($_SESSION["user"]) || !$result) {
+    header('Location: login.php');
+    return;
 }
 
-if ($status !== '') {
-    $where[] = "User_Status = ?";
-    $params[] = $status;
+fx_csrf_guard();
+
+$statsQ = $pdo->query("SELECT COUNT(*) AS total, SUM(CASE WHEN LOWER(User_Status)='block' THEN 1 ELSE 0 END) AS blocked, SUM(Balance) AS balance FROM user");
+$statsRow = $statsQ ? $statsQ->fetch(PDO::FETCH_ASSOC) : ['total' => 0, 'blocked' => 0, 'balance' => 0];
+$u_total = (int)($statsRow['total'] ?? 0);
+$u_block = (int)($statsRow['blocked'] ?? 0);
+$u_active = $u_total - $u_block;
+$u_balance = (int)($statsRow['balance'] ?? 0);
+
+$userQ = fx_search_current();
+$userWhereSql = '1=1';
+$userParams = [];
+if ($userQ !== '') {
+    $userLike = '%' . $userQ . '%';
+    $userWhereSql .= ' AND (id LIKE :uq1 OR username LIKE :uq2 OR namecustom LIKE :uq3 OR number LIKE :uq4 OR number_username LIKE :uq5)';
+    $userParams[':uq1'] = $userLike;
+    $userParams[':uq2'] = $userLike;
+    $userParams[':uq3'] = $userLike;
+    $userParams[':uq4'] = $userLike;
+    $userParams[':uq5'] = $userLike;
 }
 
-if ($role !== '') {
-    $where[] = "agent = ?";
-    $params[] = $role;
-}
-
-$whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-
-try {
-    $total = db_count($pdo, "SELECT COUNT(*) FROM user $whereSQL", $params);
-    $users = db_fetchAll($pdo, "SELECT * FROM user $whereSQL ORDER BY register DESC LIMIT $perPage OFFSET $offset", $params);
-} catch (Exception $e) {
-    $total = 0;
-    $users = [];
-    error_log('users.php: ' . $e->getMessage());
-}
-
-$totalPages = max(1, (int) ceil($total / $perPage));
-
-$blockedCount = 0;
-$agentCount = 0;
-$agentAdvCount = 0;
-
-try {
-    $blockedCount = db_count($pdo, "SELECT COUNT(*) FROM user WHERE User_Status='block'");
-    $agentCount = db_count($pdo, "SELECT COUNT(*) FROM user WHERE agent='n'");
-    $agentAdvCount = db_count($pdo, "SELECT COUNT(*) FROM user WHERE agent='n2'");
-} catch (Exception $e) {
-}
-
-$pageTitle = $textbotlang['panel']['usersTitle'];
-$pageLede = $textbotlang['panel']['usersSubtitle'];
-$activeNav = 'users';
-include __DIR__ . '/inc/layout_head.php';
+$pg = fx_paginate($pdo, "SELECT COUNT(*) FROM user WHERE $userWhereSql", $userParams, 5);
+$query = $pdo->prepare("SELECT * FROM user WHERE $userWhereSql ORDER BY id DESC LIMIT :perPage OFFSET :offset");
+foreach ($userParams as $k => $v) $query->bindValue($k, $v, PDO::PARAM_STR);
+$query->bindValue(':perPage', $pg['perPage'], PDO::PARAM_INT);
+$query->bindValue(':offset', $pg['offset'], PDO::PARAM_INT);
+$query->execute();
+$listusers = $query->fetchAll();
 ?>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>مدیریت کاربران | ربات فاکسیما</title>
+    <link rel="stylesheet" href="css/theme.css?v=flat47">
+<script src="js/theme.js?v=flat5" defer>
 
-<div class="card fade-up">
-    <div class="toolbar">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <div class="toolbar-title"><?= $textbotlang['panel']['usersHeading'] ?> <small>(<?= number_format($total) ?>)</small></div>
+</script>
+</head>
+<body>
 
-            <?php if ($blockedCount > 0): ?>
-                <a href="?status=block" class="tag tag-no" style="cursor:pointer"><?= $blockedCount ?> <?= $textbotlang['panel']['usersColId'] ?></a>
-            <?php endif; ?>
-            <?php if ($agentCount > 0): ?>
-                <a href="?role=n" class="tag tag-info" style="cursor:pointer"><?= $agentCount ?> <?= $textbotlang['panel']['usersColName'] ?></a>
-            <?php endif; ?>
-            <?php if ($agentAdvCount > 0): ?>
-                <a href="?role=n2" class="tag tag-warn" style="cursor:pointer"><?= $agentAdvCount ?> <?= $textbotlang['panel']['usersColUsername'] ?></a>
-            <?php endif; ?>
-        </div>
+<section id="container">
+    <?php include("header.php"); ?>
 
-        <form method="GET" id="usersForm" class="toolbar-end">
-            <select name="status" class="select" style="width:auto"
-                onchange="document.getElementById('usersForm').submit()">
-                <option value=""><?= $textbotlang['panel']['usersColBalance'] ?></option>
-                <option value="active" <?= $status === 'active' ? 'selected' : '' ?>><?= $textbotlang['panel']['usersColGroup'] ?></option>
-                <option value="block" <?= $status === 'block' ? 'selected' : '' ?>><?= $textbotlang['panel']['usersColStatus'] ?></option>
-            </select>
+    <section id="main-content">
+        <div class="wrapper">
 
-            <select name="role" class="select" style="width:auto"
-                onchange="document.getElementById('usersForm').submit()">
-                <option value=""><?= $textbotlang['panel']['usersColActions'] ?></option>
-                <option value="f" <?= $role === 'f' ? 'selected' : '' ?>><?= $textbotlang['panel']['usersColJoinDate'] ?></option>
-                <option value="n" <?= $role === 'n' ? 'selected' : '' ?>><?= $textbotlang['panel']['usersColPhone'] ?></option>
-                <option value="n2" <?= $role === 'n2' ? 'selected' : '' ?>><?= $textbotlang['panel']['usersColCustomName'] ?></option>
-            </select>
-
-            <div class="search-box" style="min-width:260px">
-                <?= icon('search', 15) ?>
-                <input type="text" name="q" placeholder="<?= $textbotlang['panel']['usersSearchUserPlaceholder'] ?>"
-                    value="<?= htmlspecialchars($search) ?>" autocomplete="off">
-                <button type="button" class="search-clear">✕</button>
-                <button type="submit" class="search-btn"><?= $textbotlang['panel']['usersAllGroups'] ?></button>
+            <div class="page-head">
+                <div>
+                    <div class="page-head__title">
+                        <?php echo icon('users', 'svg-icon svg-lg'); ?>
+                        لیست کاربران
+                    </div>
+                    <div class="page-head__sub">مدیریت و مشاهده اطلاعات کاربران ربات</div>
+                </div>
             </div>
 
-            <?php if ($search || $status || $role): ?>
-                <a href="users.php" class="btn-link" style="font-size:.78rem;white-space:nowrap"><?= $textbotlang['panel']['usersAllStatuses'] ?></a>
-            <?php endif; ?>
-        </form>
-    </div>
+            <div class="stats-grid">
+                <div class="stat-card observe-in">
+                    <div class="stat-card__top">
+                        <div class="stat-card__info">
+                            <span class="stat-card__label">کل کاربران</span>
+                            <span class="stat-card__value" data-count="<?php echo (int)$u_total; ?>"><?php echo number_format($u_total); ?></span>
+                        </div>
+                        <span class="stat-card__icon icon-blue"><?php echo icon('users', 'svg-icon'); ?></span>
+                    </div>
+                </div>
+                <div class="stat-card observe-in">
+                    <div class="stat-card__top">
+                        <div class="stat-card__info">
+                            <span class="stat-card__label">فعال</span>
+                            <span class="stat-card__value" data-count="<?php echo (int)$u_active; ?>"><?php echo number_format($u_active); ?></span>
+                        </div>
+                        <span class="stat-card__icon icon-green"><?php echo icon('users', 'svg-icon'); ?></span>
+                    </div>
+                </div>
+                <div class="stat-card observe-in">
+                    <div class="stat-card__top">
+                        <div class="stat-card__info">
+                            <span class="stat-card__label">مسدود</span>
+                            <span class="stat-card__value" data-count="<?php echo (int)$u_block; ?>"><?php echo number_format($u_block); ?></span>
+                        </div>
+                        <span class="stat-card__icon icon-rose"><?php echo icon('users', 'svg-icon'); ?></span>
+                    </div>
+                </div>
+                <div class="stat-card observe-in">
+                    <div class="stat-card__top">
+                        <div class="stat-card__info">
+                            <span class="stat-card__label">مجموع موجودی</span>
+                            <span class="stat-card__value" data-count="<?php echo (int)$u_balance; ?>" data-suffix=" T"><?php echo number_format($u_balance); ?> T</span>
+                        </div>
+                        <span class="stat-card__icon icon-amber"><svg class="svg-icon" viewBox="-1.5 0 33 33" aria-hidden="true"><g transform="translate(-259,-776)" fill="currentColor"><path fill="currentColor" stroke="none" d="M283,799 L289,799 L289,797 L283,797 L283,799 Z M287,787 L259,787 L259,807 C259,808.104 259.896,809 261,809 L287,809 C288.104,809 289,808.104 289,807 L289,801 L282,801 C281.448,801 281,800.553 281,800 L281,796 C281,795.448 281.448,795 282,795 L289,795 L289,789 C289,787.896 288.104,787 287,787 L287,787 Z M287,778 C287,777.447 286.764,777.141 286.25,776.938 C285.854,776.781 285.469,776.875 285,777 L259,785 L287,785 L287,778 L287,778 Z"/></g></svg></span>
+                    </div>
+                </div>
+            </div>
 
-    <div class="tbl-wrap">
-        <table class="tbl-xl">
-            <thead>
-                <tr>
-                    <th style="width:36px">#</th>
-                    <th><?= $textbotlang['panel']['usersSearchBtn'] ?></th>
-                    <th><?= $textbotlang['panel']['usersClearBtn'] ?></th>
-                    <th><?= $textbotlang['panel']['usersGroupFreeUser'] ?></th>
-                    <th><?= $textbotlang['panel']['usersGroupNormalAgent'] ?></th>
-                    <th><?= $textbotlang['panel']['usersGroupAdvancedAgent'] ?></th>
-                    <th><?= $textbotlang['panel']['usersStatusActiveFilter'] ?></th>
-                    <th><?= $textbotlang['panel']['usersStatusBlockedFilter'] ?></th>
-                    <th><?= $textbotlang['panel']['usersPaginationPrev'] ?></th>
-                    <th style="width:72px"></th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (empty($users)): ?>
-                    <tr>
-                        <td colspan="10">
-                            <div class="empty">
-                                <svg class="ill" viewBox="0 0 200 160" fill="none">
-                                    <circle cx="100" cy="60" r="40" fill="var(--sf3)" />
-                                    <circle cx="100" cy="47" r="18" fill="var(--bds)" />
-                                    <path d="M62 105 Q100 88 138 105" stroke="var(--bds)" stroke-width="8"
-                                        stroke-linecap="round" fill="none" />
-                                </svg>
-                                <p><?= $search ? $textbotlang['panel']['usersNoResultFound'] : $textbotlang['panel']['usersNoUserYet'] ?></p>
-                            </div>
-                        </td>
-                    </tr>
-                <?php else:
-                    $i = $offset + 1;
-                    foreach ($users as $u):
-                        $agent = $u['agent'] ?? 'f';
-                        $isBlocked = ($u['User_Status'] ?? '') === 'block';
-                        $name = $u['namecustom'] ?? '';
-                        if ($name === 'none')
-                            $name = '';
-                        $uname = $u['username'] ?? '';
-                        if ($uname === 'none')
-                            $uname = '';
+            <?php echo fx_search_ui('users.php', $userQ, [], 'جستجو در شناسه، نام کاربری، شماره تلفن یا نام سفارشی…'); ?>
+
+            <div class="card">
+                <div class="table-wrap">
+                    <table id="usersTable" class="display app-table app-table--summary" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>شناسه (ID)</th>
+                                <th>نام کاربری</th>
+                                <th>شماره تلفن</th>
+                                <th>موجودی</th>
+                                <th>زیرمجموعه</th>
+                                <th>وضعیت</th>
+                                <th data-no-sort="1">عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php $u_i = 0; foreach ($listusers as $list):
+                            $statusClass = 'badge-active';
+                            $statusText  = 'فعال';
+                            if (strtolower($list['User_Status']) == 'block') {
+                                $statusClass = 'badge-block';
+                                $statusText  = 'مسدود';
+                            }
+                            $number = ($list['number'] == "none") ? '<span class="text-muted">---</span>' : htmlspecialchars($list['number'], ENT_QUOTES, 'UTF-8');
+                            $uname = htmlspecialchars($list['username'], ENT_QUOTES, 'UTF-8');
+                            $uinit = mb_strtoupper(mb_substr(trim((string)$list['username']), 0, 1, 'UTF-8'), 'UTF-8');
+                            if ($uinit === '') { $uinit = '#'; }
+                            $av = $u_i % 4; $u_i++;
                         ?>
-                        <tr>
-                            <td class="cf"><?= $i++ ?></td>
-                            <td class="cm"><?= htmlspecialchars($u['id']) ?></td>
-                            <td>
-                                <?php if ($uname): ?>
-                                    <span class="cm" style="color:var(--ac)">@<?= htmlspecialchars($uname) ?></span>
-                                <?php else: ?>
-                                    <span class="cf">—</span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="cs"><?= $name ? htmlspecialchars(trunc($name, 20)) : '<span class="cf">—</span>' ?></td>
-                            <td class="cm cf">
-                                <?= (!empty($u['number']) && $u['number'] !== 'none') ? htmlspecialchars($u['number']) : '—' ?>
-                            </td>
-                            <td class="cn cs" style="white-space:nowrap">
-                                <?= number_format((int) ($u['Balance'] ?? 0)) ?> <span class="cf"><?= $textbotlang['panel']['usersPaginationNext'] ?></span>
-                            </td>
-                            <td class="cn">
-                                <?= (int) ($u['score'] ?? 0) > 0
-                                    ? '<span style="color:var(--warn)">⭐ ' . number_format((int) ($u['score'] ?? 0)) . '</span>'
-                                    : '<span class="cf">—</span>' ?>
-                            </td>
-                            <td class="cf"><?= safe_date($u['register'] ?? null) ?></td>
-                            <td>
-                                <?php if ($isBlocked): ?>
-                                    <span class="tag tag-no"><?= $textbotlang['panel']['usersTotalCountLabel'] ?></span>
-                                <?php else: ?>
-                                    <span class="tag <?= user_role_tag($agent) ?>">
-                                        <?= user_role_label($agent) ?>
+                            <tr data-detail-row data-detail-title="<?php echo $uname; ?>">
+                                <td data-label="شناسه (ID)" data-summary="1"><?php echo $list['id']; ?></td>
+                                <td data-label="نام کاربری" data-summary="1">
+                                    <span class="cell-user">
+                                        <span class="user-avatar av<?php echo $av; ?>"><?php echo htmlspecialchars($uinit, ENT_QUOTES, 'UTF-8'); ?></span>
+                                        <span class="cell-user__text">
+                                            <span class="cell-user__name" style="direction:ltr;"><?php echo $uname; ?></span>
+                                            <span class="cell-user__sub">شناسه: <?php echo $list['id']; ?></span>
+                                        </span>
                                     </span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <div style="display:flex;gap:4px">
-                                    <a href="user.php?id=<?= (int) $u['id'] ?>" class="btn btn-ghost btn-sm btn-icon"
-                                        title="<?= htmlspecialchars($textbotlang['panel']['usersViewBtn']) ?>">
-                                        <?= icon('eye', 14) ?>
+                                </td>
+                                <td data-label="شماره تلفن"><?php echo $number; ?></td>
+                                <td data-label="موجودی"><?php echo number_format($list['Balance']); ?> <small class="text-muted">T</small></td>
+                                <td data-label="زیرمجموعه"><?php echo (int)$list['affiliatescount']; ?> <small class="text-muted">نفر</small></td>
+                                <td data-label="وضعیت" data-summary="1" data-filter-value="<?php echo $statusText; ?>"><span class="badge <?php echo $statusClass; ?>"><?php echo $statusText; ?></span></td>
+                                <td data-label="عملیات" class="cell-actions">
+                                    <a href="user.php?id=<?php echo $list['id']; ?>" class="btn-action" title="مدیریت" aria-label="مدیریت">
+                                        <?php echo icon('pen-to-square', 'svg-icon'); ?>
                                     </a>
-                                    <?php if ($isBlocked): ?>
-                                        <a href="user_action.php?action=unblock&id=<?= (int) $u['id'] ?>&_csrf=<?= csrf_token() ?>&back=users.php"
-                                            class="btn btn-ok btn-sm btn-icon" title="<?= htmlspecialchars($textbotlang['panel']['usersUnblockBtn']) ?>"
-                                            data-confirm="<?= htmlspecialchars(sprintf($textbotlang['panel']['usersConfirmUnblockUser'], $name, $u['id'])) ?>">
-                                            <?= icon('check', 13) ?>
-                                        </a>
-                                    <?php else: ?>
-                                        <a href="user_action.php?action=block&id=<?= (int) $u['id'] ?>&_csrf=<?= csrf_token() ?>&back=users.php"
-                                            class="btn btn-no btn-sm btn-icon" title="<?= htmlspecialchars($textbotlang['panel']['usersBlockBtn']) ?>"
-                                            data-confirm="<?= htmlspecialchars(sprintf($textbotlang['panel']['usersConfirmBlockUser'], $name, $u['id'])) ?>">
-                                            <?= icon('block', 13) ?>
-                                        </a>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; endif; ?>
-            </tbody>
-        </table>
-    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <?php echo fx_pager_html($pg['page'], $pg['pages'], $pg['total'], count($listusers), 'users.php', ['q' => $userQ !== '' ? $userQ : null]); ?>
+                </div>
+                </div>
+            </div>
 
-    <div class="tbl-foot">
-        <span><?= number_format($total) ?> <?= $textbotlang['panel']['usersColReferrer'] ?> <?= $page ?> <?= $textbotlang['panel']['usersColAffiliateCount'] ?> <?= $totalPages ?></span>
-        <div class="pager">
-            <?php
-            $qs = fn($p) => '?q=' . urlencode($search)
-                . '&status=' . urlencode($status)
-                . '&role=' . urlencode($role)
-                . '&page=' . $p;
-            ?>
-            <a class="<?= $page <= 1 ? 'dis' : '' ?>" href="<?= $qs(max(1, $page - 1)) ?>">‹</a>
-            <?php for ($p = max(1, $page - 2); $p <= min($totalPages, $page + 2); $p++): ?>
-                <a class="<?= $p === $page ? 'cur' : '' ?>" href="<?= $qs($p) ?>"><?= $p ?></a>
-            <?php endfor; ?>
-            <a class="<?= $page >= $totalPages ? 'dis' : '' ?>" href="<?= $qs(min($totalPages, $page + 1)) ?>">›</a>
         </div>
-    </div>
-</div>
+    </section>
+</section>
+</body>
+</html>
 
-<script src="js/users.js"></script>
-<?php include __DIR__ . '/inc/layout_foot.php'; ?>
+

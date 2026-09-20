@@ -1,4 +1,3 @@
-// WebView
 (function () {
   var eventHandlers = {};
 
@@ -101,27 +100,26 @@
     return params;
   }
 
-  // Telegram apps will implement this logic to add service params (e.g. tgShareScoreUrl) to game URL
+
   function urlAppendHashParams(url, addHash) {
-    // url looks like 'https://game.com/path?query=1#hash'
-    // addHash looks like 'tgShareScoreUrl=' + encodeURIComponent('tgb://share_game_score?hash=very_long_hash123')
+
 
     var ind = url.indexOf('#');
     if (ind < 0) {
-      // https://game.com/path -> https://game.com/path#tgShareScoreUrl=etc
+
       return url + '#' + addHash;
     }
     var curHash = url.substr(ind + 1);
     if (curHash.indexOf('=') >= 0 || curHash.indexOf('?') >= 0) {
-      // https://game.com/#hash=1 -> https://game.com/#hash=1&tgShareScoreUrl=etc
-      // https://game.com/#path?query -> https://game.com/#path?query&tgShareScoreUrl=etc
+
+
       return url + '&' + addHash;
     }
-    // https://game.com/#hash -> https://game.com/#hash?tgShareScoreUrl=etc
+
     if (curHash.length > 0) {
       return url + '?' + addHash;
     }
-    // https://game.com/# -> https://game.com/#tgShareScoreUrl=etc
+
     return url + addHash;
   }
 
@@ -145,7 +143,7 @@
     else if (isIframe) {
       try {
         var trustedTarget = 'https://web.telegram.org';
-        // For now we don't restrict target, for testing purposes
+
         trustedTarget = '*';
         window.parent.postMessage(JSON.stringify({eventType: eventType, eventData: eventData}), trustedTarget);
         callback();
@@ -267,16 +265,16 @@
     sessionStorageGet: sessionStorageGet
   };
 
-  // For Windows Phone app
+
   window.TelegramGameProxy_receiveEvent = receiveEvent;
 
-  // App backward compatibility
+
   window.TelegramGameProxy = {
     receiveEvent: receiveEvent
   };
 })();
 
-// WebApp
+
 (function () {
   var Utils = window.Telegram.Utils;
   var WebView = window.Telegram.WebView;
@@ -457,7 +455,7 @@
   }
 
   function setThemeParams(theme_params) {
-    // temp iOS fix
+
     if (theme_params.bg_color == '#1c1c1d' &&
         theme_params.bg_color == theme_params.secondary_bg_color) {
       theme_params.secondary_bg_color = '#2c2c2e';
@@ -1448,7 +1446,7 @@
           throw Error('WebAppHapticNotificationTypeInvalid');
         }
       } else if (params.type == 'selection_change') {
-        // no params needed
+
       } else {
         console.error('[Telegram.WebApp] Haptic feedback type is invalid', params.type);
         throw Error('WebAppHapticFeedbackTypeInvalid');
@@ -2999,7 +2997,7 @@
         if (button_type == 'ok' ||
             button_type == 'close' ||
             button_type == 'cancel') {
-          // no params needed
+
         } else if (button_type == 'default' ||
                    button_type == 'destructive') {
           var text = '';
@@ -3326,3 +3324,4 @@
   WebView.postEvent('web_app_request_content_safe_area');
 
 })();
+

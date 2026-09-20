@@ -968,6 +968,8 @@ bot_section() {
     fi
     if [ -n "$SSL_DOMAIN" ]; then
         _kv "Domain" "${C_DIM}https://${SSL_DOMAIN}${CR}"
+        _kv "Admin Panel" "${C_DIM}https://${SSL_DOMAIN}/panel${CR}"
+        _kv "Mini App" "${C_DIM}https://${SSL_DOMAIN}/app${CR}"
         _kv "phpMyAdmin" "${C_DIM}https://${SSL_DOMAIN}/phpmyadmin${CR}"
     fi
 }

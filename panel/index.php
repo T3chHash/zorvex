@@ -1,394 +1,868 @@
 <?php
-require_once __DIR__ . '/inc/config.php';
-require_once __DIR__ . '/inc/icons.php';
-require_auth();
 
-$totalUsers = 0;
-$newToday = 0;
-$totalRevenue = 0;
-$activeNow = 0;
-$pendingPay = 0;
-$txToday = 0;
 
-try {
-    $totalUsers = db_count($pdo, "SELECT COUNT(*) FROM user");
-    $newToday = db_count($pdo, "SELECT COUNT(*) FROM user WHERE register > ?", [strtotime('today')]);
-} catch (Exception $e) {
+if (!defined('FAOXIMA_SKIP_BOTAPI_ROUTER')) {
+    define('FAOXIMA_SKIP_BOTAPI_ROUTER', true);
 }
 
-try {
-    $totalRevenue = (int) db_query($pdo, "SELECT COALESCE(SUM(price_product),0) FROM invoice WHERE Status IN ('active','end_of_time','end_of_volume','sendedwarn','send_on_hold')")->fetchColumn();
-    $activeNow = db_count($pdo, "SELECT COUNT(*) FROM invoice WHERE Status='active'");
-} catch (Exception $e) {
+
+if (!defined('FAOXIMA_SKIP_BOTAPI_ROUTER')) {
+    define('FAOXIMA_SKIP_BOTAPI_ROUTER', true);
 }
 
-try {
-    $pendingPay = db_count($pdo, "SELECT COUNT(*) FROM Payment_report WHERE payment_Status='waiting'");
-    $txToday = db_count($pdo, "SELECT COUNT(*) FROM Payment_report WHERE time > ?", [strtotime('today')]);
-} catch (Exception $e) {
-}
+register_shutdown_function(static function () {
+    $err = error_get_last();
+    if (!$err) return;
+    $fatal = [E_ERROR, E_PARSE, E_COMPILE_ERROR, E_CORE_ERROR, E_USER_ERROR];
+    if (!in_array($err['type'], $fatal, true)) return;
 
-$recentInvoices = [];
-$recentUsers = [];
-$panelsList = [];
-try {
-    $recentInvoices = db_fetchAll($pdo, "SELECT * FROM invoice ORDER BY time_sell DESC LIMIT 8");
-} catch (Exception $e) {
-}
-try {
-    $recentUsers = db_fetchAll($pdo, "SELECT * FROM user ORDER BY register DESC LIMIT 8");
-} catch (Exception $e) {
-}
-try {
-    $panelsList = db_fetchAll($pdo, "SELECT * FROM marzban_panel ORDER BY id DESC LIMIT 6");
-} catch (Exception $e) {
-}
-
-// 7-day trend analytics for chart
-$trendDays = [];
-$maxSales = 1;
-for ($i = 6; $i >= 0; $i--) {
-    $dayStart = strtotime("-$i days midnight");
-    $dayEnd = $dayStart + 86400;
-    $dayLabel = function_exists('jdate') ? jdate('m/d', $dayStart) : date('m/d', $dayStart);
-    
-    $daySales = 0;
-    $dayUsers = 0;
-    try {
-        $daySales = (int) db_query($pdo, "SELECT COALESCE(SUM(price_product),0) FROM invoice WHERE time_sell >= ? AND time_sell < ?", [$dayStart, $dayEnd])->fetchColumn();
-        $dayUsers = db_count($pdo, "SELECT COUNT(*) FROM user WHERE register >= ? AND register < ?", [$dayStart, $dayEnd]);
-    } catch (Exception $e) {}
-    
-    if ($daySales > $maxSales) {
-        $maxSales = $daySales;
+    while (ob_get_level() > 0) { @ob_end_clean(); }
+    if (!headers_sent()) {
+        @header_remove('Content-Encoding');
+        @header_remove('Content-Length');
+        @ini_set('zlib.output_compression', '0');
+        http_response_code(500);
+        header('Content-Type: text/html; charset=utf-8');
     }
-    
-    $trendDays[] = [
-        'label' => $dayLabel,
-        'sales' => $daySales,
-        'users' => $dayUsers,
-    ];
+    $msg = htmlspecialchars(
+        $err['message'] . ' @ ' . basename((string)$err['file']) . ':' . (int)$err['line'],
+        ENT_QUOTES, 'UTF-8'
+    );
+    echo '<!DOCTYPE html><html lang="fa" dir="rtl"><meta charset="utf-8">'
+       . '<title>خطای سرور</title>'
+       . '<body style="font-family:sans-serif;background:#0a0a0f;color:#f1f3f8;padding:32px;">'
+       . '<h2>خطای داخلی سرور</h2><pre style="white-space:pre-wrap">' . $msg . '</pre>'
+       . '<p><a style="color:#3b82f6" href="login.php">بازگشت به ورود</a></p>'
+       . '</body></html>';
+});
+
+ini_set('session.cookie_samesite', 'Lax');
+ini_set('session.cookie_httponly', '1');
+session_start();
+
+if (empty($_SESSION['_session_regenerated'])) {
+    session_regenerate_id(true);
+    $_SESSION['_session_regenerated'] = true;
 }
 
-$pageTitle = $textbotlang['panel']['dashboardTitle'];
-$activeNav = 'dashboard';
-$showPageHead = false;
-include __DIR__ . '/inc/layout_head.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/lib/icons.php';
+require_once __DIR__ . '/../jdf.php';
+
+
+$sessionUser = isset($_SESSION["user"]) && is_string($_SESSION["user"]) && $_SESSION["user"] !== ''
+    ? $_SESSION["user"]
+    : null;
+
+if ($sessionUser === null) {
+    header('Location: login.php');
+    exit;
+}
+
+$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username LIMIT 1");
+$query->bindValue(':username', $sessionUser, PDO::PARAM_STR);
+$query->execute();
+$result = $query->fetch(PDO::FETCH_ASSOC);
+
+if (!$result) {
+    $_SESSION = [];
+    header('Location: login.php');
+    exit;
+}
+
+
+function faoxima_chart_data(\PDO $pdo, string $range, int $customDays = 7): array
+{
+    $now = time();
+
+    $bucketHours = 0;
+    $bucketCount = 0;
+    $labelFmt    = '';
+
+    switch ($range) {
+        case '24h':
+            $bucketHours = 1;
+            $bucketCount = 24;
+            $labelFmt    = 'H:00';
+            break;
+        case '7d':
+            $bucketHours = 24;
+            $bucketCount = 7;
+            $labelFmt    = 'm/d';
+            break;
+        case '3m':
+
+            $bucketHours = 24 * 7;
+            $bucketCount = 13;
+            $labelFmt    = 'm/d';
+            break;
+        case 'custom':
+            $customDays = max(1, min(365, $customDays));
+            if ($customDays <= 30) {
+                $bucketHours = 24;
+                $bucketCount = $customDays;
+                $labelFmt    = 'm/d';
+            } else {
+
+                $bucketHours = 24 * 7;
+                $bucketCount = (int)ceil($customDays / 7);
+                $labelFmt    = 'm/d';
+            }
+            break;
+        default:
+            return ['labels' => [], 'data' => []];
+    }
+
+    $bucketSec = $bucketHours * 3600;
+    $earliest  = $now - $bucketCount * $bucketSec;
+
+
+    $stmt = $pdo->prepare(
+        "SELECT time_sell, price_product
+           FROM invoice
+          WHERE time_sell >= :since
+            AND (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold')
+            AND name_product != 'سرویس تست'"
+    );
+    $stmt->bindValue(':since', $earliest, PDO::PARAM_INT);
+    $stmt->execute();
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+    $buckets = array_fill(0, $bucketCount, 0);
+    foreach ($rows as $r) {
+        $t = (int)$r['time_sell'];
+        if ($t < $earliest || $t > $now) continue;
+        $idx = (int)floor(($t - $earliest) / $bucketSec);
+        if ($idx < 0 || $idx >= $bucketCount) continue;
+        $buckets[$idx] += (int)$r['price_product'];
+    }
+
+
+    $labels = [];
+    for ($i = 0; $i < $bucketCount; $i++) {
+        $bucketStart = $earliest + $i * $bucketSec;
+        $labels[] = function_exists('jdate')
+            ? jdate($labelFmt, $bucketStart)
+            : date($labelFmt, $bucketStart);
+    }
+
+    return ['labels' => $labels, 'data' => $buckets];
+}
+
+
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'chart') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    $range = $_GET['range'] ?? '7d';
+    if (!in_array($range, ['24h', '7d', '3m', 'custom'], true)) $range = '7d';
+    $days  = isset($_GET['days']) ? (int)$_GET['days'] : 7;
+    try {
+        $payload = faoxima_chart_data($pdo, $range, $days);
+        echo json_encode(['ok' => true] + $payload, JSON_UNESCAPED_UNICODE);
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'search') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    $q = trim((string)($_GET['q'] ?? ''));
+    $qLen = function_exists('mb_strlen') ? mb_strlen($q) : strlen($q);
+    if ($qLen < 2) { echo json_encode(['ok' => true, 'groups' => []], JSON_UNESCAPED_UNICODE); exit; }
+    $like = '%' . $q . '%';
+    $groups = [];
+    try {
+        $st = $pdo->prepare("SELECT id, username, namecustom, number FROM user WHERE id LIKE ? OR username LIKE ? OR namecustom LIKE ? OR number LIKE ? OR number_username LIKE ? ORDER BY (id + 0) DESC LIMIT 8");
+        $st->execute([$like, $like, $like, $like, $like]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $uname = (string)($r['username'] ?? '');
+            if ($uname === '' || $uname === 'none') $uname = (string)($r['namecustom'] ?? '');
+            $title = ($uname !== '' && $uname !== 'none') ? $uname : (string)$r['id'];
+            $sub = 'آیدی: ' . (string)$r['id'];
+            $num = (string)($r['number'] ?? '');
+            if ($num !== '' && $num !== 'none') $sub .= ' — ' . $num;
+            $items[] = ['title' => $title, 'sub' => $sub, 'url' => 'user.php?id=' . urlencode((string)$r['id'])];
+        }
+        if ($items) $groups[] = ['type' => 'users', 'label' => 'کاربران', 'icon' => icon('users', 'svg-icon'), 'items' => $items];
+    } catch (\Throwable $e) { error_log('[search] users: ' . $e->getMessage()); }
+    try {
+        $st = $pdo->prepare("SELECT id_invoice, id_user, username, name_product, price_product FROM invoice WHERE (id_invoice LIKE ? OR id_user LIKE ? OR username LIKE ? OR name_product LIKE ?) AND name_product != 'سرویس تست' ORDER BY (time_sell + 0) DESC LIMIT 6");
+        $st->execute([$like, $like, $like, $like]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $title = (string)$r['name_product'];
+            $cfg = (string)($r['username'] ?? '');
+            if ($cfg !== '') $title .= ' — ' . $cfg;
+            $sub = 'سفارش: ' . (string)$r['id_invoice'] . ' — ' . number_format((float)$r['price_product']) . ' T';
+            $items[] = ['title' => $title, 'sub' => $sub, 'url' => 'invoice.php?q=' . urlencode($q)];
+        }
+        if ($items) $groups[] = ['type' => 'invoices', 'label' => 'سفارشات', 'icon' => icon('receipt', 'svg-icon'), 'items' => $items];
+    } catch (\Throwable $e) { error_log('[search] invoices: ' . $e->getMessage()); }
+    try {
+        $st = $pdo->prepare("SELECT id, name_product, price_product, category FROM product WHERE id LIKE ? OR name_product LIKE ? OR category LIKE ? ORDER BY id ASC LIMIT 6");
+        $st->execute([$like, $like, $like]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $title = (string)$r['name_product'];
+            $sub = number_format((float)$r['price_product']) . ' T';
+            $cat = (string)($r['category'] ?? '');
+            if ($cat !== '') $sub .= ' — ' . $cat;
+            $items[] = ['title' => $title, 'sub' => $sub, 'url' => 'productedit.php?id=' . urlencode((string)$r['id'])];
+        }
+        if ($items) $groups[] = ['type' => 'products', 'label' => 'محصولات', 'icon' => icon('package', 'svg-icon'), 'items' => $items];
+    } catch (\Throwable $e) { error_log('[search] products: ' . $e->getMessage()); }
+    try {
+        $st = $pdo->prepare("SELECT id_user, id_order, price, Payment_Method FROM Payment_report WHERE id_order LIKE ? OR id_user LIKE ? ORDER BY time DESC LIMIT 6");
+        $st->execute([$like, $like]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $title = 'پیگیری: ' . (string)$r['id_order'];
+            $sub = 'کاربر ' . (string)$r['id_user'] . ' — ' . number_format((float)$r['price']) . ' T';
+            $items[] = ['title' => $title, 'sub' => $sub, 'url' => 'payment.php?q=' . urlencode($q)];
+        }
+        if ($items) $groups[] = ['type' => 'payments', 'label' => 'تراکنش‌ها', 'icon' => icon('money-bill', 'svg-icon'), 'items' => $items];
+    } catch (\Throwable $e) { error_log('[search] payments: ' . $e->getMessage()); }
+    try {
+        $st = $pdo->prepare("SELECT id, id_user, username, type, price FROM service_other WHERE id_user LIKE ? OR username LIKE ? ORDER BY id DESC LIMIT 6");
+        $st->execute([$like, $like]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $title = (string)($r['username'] ?? '');
+            if ($title === '') $title = 'سرویس #' . (string)$r['id'];
+            $sub = 'کاربر ' . (string)$r['id_user'];
+            $items[] = ['title' => $title, 'sub' => $sub, 'url' => 'service.php?q=' . urlencode($q)];
+        }
+        if ($items) $groups[] = ['type' => 'services', 'label' => 'سرویس‌ها', 'icon' => icon('server', 'svg-icon'), 'items' => $items];
+    } catch (\Throwable $e) { error_log('[search] services: ' . $e->getMessage()); }
+    try {
+        $st = $pdo->prepare("SELECT id, id_user, id_order, id_invoice, price FROM Payment_report WHERE id_user LIKE ? OR id_order LIKE ? OR id_invoice LIKE ? ORDER BY id DESC LIMIT 6");
+        $st->execute([$like, $like, $like]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $title = 'درخواست #' . (string)$r['id'] . ' — کاربر ' . (string)$r['id_user'];
+            $sub = number_format((float)$r['price']) . ' T';
+            $items[] = ['title' => $title, 'sub' => $sub, 'url' => 'cancelService.php?q=' . urlencode($q)];
+        }
+        if ($items) $groups[] = ['type' => 'requests', 'label' => 'درخواست‌ها', 'icon' => icon('list', 'svg-icon'), 'items' => $items];
+    } catch (\Throwable $e) { error_log('[search] requests: ' . $e->getMessage()); }
+    try {
+        $st = $pdo->prepare("SELECT s.Tracking, s.iduser, s.name_departman, s.status, s.text FROM support_message s INNER JOIN (SELECT Tracking, MIN(id) mid FROM support_message WHERE Tracking LIKE ? OR iduser LIKE ? OR text LIKE ? GROUP BY Tracking ORDER BY MAX(id) DESC LIMIT 6) f ON s.id = f.mid");
+        $st->execute([$like, $like, $like]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $subj = '';
+            if (preg_match('/\[\[subj:([^\]]*)\]\]/u', (string)$r['text'], $m)) $subj = trim($m[1]);
+            $title = $subj !== '' ? $subj : ('تیکت ' . (string)$r['Tracking']);
+            $sub = 'کد: ' . (string)$r['Tracking'] . ' — کاربر ' . (string)$r['iduser'];
+            $items[] = ['title' => $title, 'sub' => $sub, 'url' => 'tickets.php?t=' . urlencode((string)$r['Tracking'])];
+        }
+        if ($items) $groups[] = ['type' => 'tickets', 'label' => 'تیکت‌ها', 'icon' => icon('message', 'svg-icon'), 'items' => $items];
+    } catch (\Throwable $e) { error_log('[search] tickets: ' . $e->getMessage()); }
+    try {
+        $st = $pdo->prepare("SELECT id, namerecord, username, codeproduct, status FROM manualsell WHERE namerecord LIKE ? OR username LIKE ? OR codeproduct LIKE ? ORDER BY id DESC LIMIT 6");
+        $st->execute([$like, $like, $like]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $title = (string)($r['namerecord'] ?? '');
+            if ($title === '') $title = 'کانفیگ #' . (string)$r['id'];
+            $sub = (string)($r['codeproduct'] ?? '');
+            $items[] = ['title' => $title, 'sub' => $sub, 'url' => 'manual_service.php?q=' . urlencode($q)];
+        }
+        if ($items) $groups[] = ['type' => 'manual_sales', 'label' => 'فروش دستی', 'icon' => icon('cart-check', 'svg-icon'), 'items' => $items];
+    } catch (\Throwable $e) { error_log('[search] manual_sales: ' . $e->getMessage()); }
+    try {
+        $st = $pdo->prepare("SELECT nm.id, nm.shelf_id, nm.assigned_user, nm.status, sh.name AS shelf_name FROM nm_config_stock nm LEFT JOIN nm_stock_shelves sh ON sh.id = nm.shelf_id WHERE nm.assigned_user LIKE ? OR nm.content LIKE ? OR nm.sub_link LIKE ? ORDER BY nm.id DESC LIMIT 6");
+        $st->execute([$like, $like, $like]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $title = (string)($r['shelf_name'] ?? ('انبار #' . (string)$r['shelf_id']));
+            $assigned = (string)($r['assigned_user'] ?? '');
+            $sub = $assigned !== '' ? ('کاربر: ' . $assigned) : ('کانفیگ #' . (string)$r['id']);
+            $items[] = ['title' => $title, 'sub' => $sub, 'url' => 'stock.php?shelf=' . urlencode((string)$r['shelf_id']) . '&q=' . urlencode($q)];
+        }
+        if ($items) $groups[] = ['type' => 'national_net', 'label' => 'انبار شبکه ملی', 'icon' => icon('package', 'svg-icon'), 'items' => $items];
+    } catch (\Throwable $e) { error_log('[search] national_net: ' . $e->getMessage()); }
+    echo json_encode(['ok' => true, 'groups' => $groups], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+
+$datefirstday = time() - 86400;
+
+
+@set_time_limit(20);
+
+
+$query = $pdo->prepare("SELECT SUM(price_product) FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') AND name_product != 'سرویس تست'");
+$query->execute();
+$subinvoice = $query->fetch(PDO::FETCH_ASSOC);
+$total_income = $subinvoice['SUM(price_product)'] ?? 0;
+
+
+$resultcount = (int)$pdo->query("SELECT COUNT(*) FROM user")->fetchColumn();
+
+
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM user WHERE register > :time_register AND register != 'none'");
+$stmt->bindValue(':time_register', $datefirstday, PDO::PARAM_INT);
+$stmt->execute();
+$resultcountday = (int)$stmt->fetchColumn();
+
+
+$resultcontsell = (int)$pdo->query("SELECT COUNT(*) FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') AND name_product != 'سرویس تست'")->fetchColumn();
+
+
+$initialChart = faoxima_chart_data($pdo, '7d');
+$json_labels  = json_encode($initialChart['labels'], JSON_UNESCAPED_UNICODE);
+$json_data    = json_encode($initialChart['data']);
+
+
+$__VALID = "(status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold')";
+
+function faoxima_income_between(PDO $pdo, int $from, int $to): float {
+    $s = $pdo->prepare("SELECT COALESCE(SUM(price_product),0) FROM invoice WHERE time_sell >= :a AND time_sell < :b AND (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') AND name_product != 'سرویس تست'");
+    $s->bindValue(':a', (int)$from, PDO::PARAM_INT); $s->bindValue(':b', (int)$to, PDO::PARAM_INT); $s->execute();
+    return (float)$s->fetchColumn();
+}
+function faoxima_orders_between(PDO $pdo, int $from, int $to): int {
+    $s = $pdo->prepare("SELECT COUNT(*) FROM invoice WHERE time_sell >= :a AND time_sell < :b AND (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') AND name_product != 'سرویس تست'");
+    $s->bindValue(':a', (int)$from, PDO::PARAM_INT); $s->bindValue(':b', (int)$to, PDO::PARAM_INT); $s->execute();
+    return (int)$s->fetchColumn();
+}
+function faoxima_users_between(PDO $pdo, int $from, int $to): int {
+    $s = $pdo->prepare("SELECT COUNT(*) FROM user WHERE register != 'none' AND register >= :a AND register < :b");
+    $s->bindValue(':a', (int)$from, PDO::PARAM_INT); $s->bindValue(':b', (int)$to, PDO::PARAM_INT); $s->execute();
+    return (int)$s->fetchColumn();
+}
+function faoxima_pct(float $cur, float $prev): int {
+    if ($prev <= 0) return $cur > 0 ? 100 : 0;
+    return (int)round(($cur - $prev) / $prev * 100);
+}
+function faoxima_trend_pill(int $pct, ?string $text = null): string {
+    $cls = $pct > 0 ? 'up' : ($pct < 0 ? 'down' : 'flat');
+    $ic  = $pct > 0 ? 'arrow-up' : ($pct < 0 ? 'arrow-down' : 'arrow-right');
+    $txt = $text !== null ? $text : (($pct > 0 ? '+' : '') . $pct . '٪');
+    return '<span class="stat-card__trend ' . $cls . '">' . icon($ic, 'svg-icon') . ' ' . htmlspecialchars($txt, ENT_QUOTES, 'UTF-8') . '</span>';
+}
+function faoxima_status_badge(string $s): array {
+    switch ($s) {
+        case 'active':        return ['تحویل شده', 'badge-success'];
+        case 'send_on_hold':  return ['در حال ارسال', 'badge-warning'];
+        case 'sendedwarn':    return ['هشدار', 'badge-warning'];
+        case 'end_of_time':   return ['پایان زمان', 'badge-gray'];
+        case 'end_of_volume': return ['پایان حجم', 'badge-gray'];
+        case 'expired':       return ['منقضی', 'badge-gray'];
+        default:              return [$s !== '' ? $s : 'نامشخص', 'badge-gray'];
+    }
+}
+
+$nowTs      = time();
+$weekAgoTs  = $nowTs - 7 * 86400;
+$twoWeekTs  = $nowTs - 14 * 86400;
+$dayAgoTs   = $nowTs - 86400;
+$twoDayTs   = $nowTs - 2 * 86400;
+$weekChartStart = strtotime('today') - (((int)date('w') + 1) % 7) * 86400;
+$since24Str = date('Y/m/d H:i:s', $dayAgoTs);
+
+$incTrend = 0; $ordTrend = 0; $u24Trend = 0; $newUsersWeek = 0;
+$catLabels = []; $catData = [];
+$weekLabels = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+$weekData = array_fill(0, 7, 0);
+$latestOrders = [];
+$activity = [];
+
+try {
+    $incTrend = faoxima_pct(faoxima_income_between($pdo, $dayAgoTs, $nowTs), faoxima_income_between($pdo, $twoDayTs, $dayAgoTs));
+    $ordTrend = faoxima_pct((float)faoxima_orders_between($pdo, $dayAgoTs, $nowTs), (float)faoxima_orders_between($pdo, $twoDayTs, $dayAgoTs));
+    $u24Trend = faoxima_pct((float)$resultcountday, (float)faoxima_users_between($pdo, $twoDayTs, $dayAgoTs));
+    $newUsersWeek = faoxima_users_between($pdo, $weekAgoTs, $nowTs);
+} catch (\Throwable $e) { error_log('[dashboard] trends: ' . $e->getMessage()); }
+
+try {
+    $st = $pdo->query("SELECT COALESCE(NULLIF(TRIM(p.category),''),'بدون دسته') AS cat, COALESCE(SUM(i.price_product),0) AS total
+        FROM invoice i LEFT JOIN product p ON p.name_product = i.name_product
+        WHERE (i.status = 'active' OR i.status = 'end_of_time' OR i.status = 'end_of_volume' OR i.status = 'sendedwarn' OR i.status = 'send_on_hold') AND i.name_product != 'سرویس تست'
+        GROUP BY cat ORDER BY total DESC");
+    $catRows = [];
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        if ((float)$r['total'] <= 0) continue;
+        $catRows[] = $r;
+    }
+    if (count($catRows) <= 6) {
+        foreach ($catRows as $r) {
+            $catLabels[] = (string)$r['cat'];
+            $catData[]   = (float)$r['total'];
+        }
+    } else {
+        $catOther = 0.0;
+        foreach ($catRows as $i => $r) {
+            if ($i < 5) {
+                $catLabels[] = (string)$r['cat'];
+                $catData[]   = (float)$r['total'];
+            } else {
+                $catOther += (float)$r['total'];
+            }
+        }
+        $catLabels[] = 'سایر';
+        $catData[]   = $catOther;
+    }
+} catch (\Throwable $e) { error_log('[dashboard] category: ' . $e->getMessage()); }
+
+try {
+    $st = $pdo->prepare("SELECT time_sell FROM invoice WHERE time_sell >= :a AND (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') AND name_product != 'سرویس تست'");
+    $st->bindValue(':a', (int)$weekChartStart, PDO::PARAM_INT); $st->execute();
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $ts) {
+        $t = (int)$ts; if ($t < $weekChartStart) continue;
+        $idx = ((int)date('w', $t) + 1) % 7;
+        $weekData[$idx]++;
+    }
+} catch (\Throwable $e) { error_log('[dashboard] weekly: ' . $e->getMessage()); }
+
+try {
+    $st = $pdo->prepare("SELECT id_invoice, username, id_user, name_product, price_product, status, time_sell FROM invoice WHERE name_product != 'سرویس تست' AND time_sell >= :since AND status IN ('active','end_of_time','end_of_volume','sendedwarn','send_on_hold') ORDER BY (time_sell + 0) DESC LIMIT 200");
+    $st->bindValue(':since', (int)$dayAgoTs, PDO::PARAM_INT); $st->execute();
+    $latestOrders = $st->fetchAll(PDO::FETCH_ASSOC);
+} catch (\Throwable $e) { error_log('[dashboard] latest: ' . $e->getMessage()); }
+
+try {
+    $st = $pdo->prepare("SELECT id_invoice, username, name_product, time_sell AS t FROM invoice WHERE name_product != 'سرویس تست' AND time_sell >= :since AND status IN ('active','end_of_time','end_of_volume','sendedwarn','send_on_hold') ORDER BY (time_sell + 0) DESC LIMIT 200");
+    $st->bindValue(':since', (int)$dayAgoTs, PDO::PARAM_INT); $st->execute();
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $activity[] = ['t' => (int)$r['t'], 'ico' => 'green', 'icon' => 'cart-shopping', 'title' => 'سفارش جدید', 'sub' => trim((string)$r['username'] . ' — ' . (string)$r['name_product'], ' —')];
+    }
+    $st = $pdo->prepare("SELECT id_user, price, Payment_Method, `time` AS t FROM Payment_report WHERE payment_Status = 'paid' AND `time` >= :s ORDER BY `time` DESC LIMIT 200");
+    $st->bindValue(':s', $since24Str, PDO::PARAM_STR); $st->execute();
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $ts = strtotime(str_replace('/', '-', (string)$r['t']));
+        if ($ts === false) continue;
+        $sub = number_format((float)$r['price']) . ' T';
+        if (!empty($r['Payment_Method'])) $sub .= ' — ' . (string)$r['Payment_Method'];
+        $activity[] = ['t' => (int)$ts, 'ico' => 'amber', 'icon' => 'money-bill', 'title' => 'پرداخت', 'sub' => $sub];
+    }
+    $st = $pdo->prepare("SELECT username, register AS t FROM user WHERE register != 'none' AND register >= :since ORDER BY (register + 0) DESC LIMIT 200");
+    $st->bindValue(':since', (int)$dayAgoTs, PDO::PARAM_INT); $st->execute();
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $activity[] = ['t' => (int)$r['t'], 'ico' => 'purple', 'icon' => 'user-plus', 'title' => 'ثبت‌نام کاربر', 'sub' => (string)$r['username']];
+    }
+    usort($activity, function ($a, $b) { return $b['t'] <=> $a['t']; });
+    $activity = array_slice($activity, 0, 200);
+} catch (\Throwable $e) { error_log('[dashboard] activity: ' . $e->getMessage()); }
+
+$json_cat_labels = json_encode($catLabels, JSON_UNESCAPED_UNICODE);
+$json_cat_data   = json_encode($catData);
+$json_week_labels = json_encode($weekLabels, JSON_UNESCAPED_UNICODE);
+$json_week_data   = json_encode($weekData);
 ?>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>پنل مدیریت هوشمند زوروکس پرو — Zorvex Pro</title>
+    <link rel="stylesheet" href="css/theme.css?v=flat47">
+    <script src="js/theme.js?v=flat5" defer>
 
-<!-- System Health Status Bar -->
-<div class="dash-health-bar fade-up">
-    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
-        <div class="health-item">
-            <span class="pulse-dot"></span>
-            <span>وضعیت هسته بات: <strong>فعال و متصل</strong></span>
-        </div>
-        <div class="health-item">
-            <span class="pulse-dot"></span>
-            <span>پایگاه داده: <strong>MySQL 8.0 OK</strong></span>
-        </div>
-        <div class="health-item">
-            <span class="pulse-dot <?= empty($panelsList) ? 'warn' : '' ?>"></span>
-            <span>نودهای سرور: <strong><?= count($panelsList) ?> نود فعال</strong></span>
-        </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:0.75rem;color:var(--mute)">نسخه پلتفرم:</span>
-        <span class="tag tag-info" style="font-size:0.72rem;padding:2px 8px">v0.0.3 PRO</span>
-    </div>
-</div>
+</script>
+</head>
+<body>
 
-<!-- Quick Actions Bar -->
-<div class="quick-actions-bar fade-up d1">
-    <a href="users.php" class="quick-btn">
-        <?= icon('users', 16) ?>
-        <span>کاربران</span>
-    </a>
-    <a href="invoice.php" class="quick-btn">
-        <?= icon('invoice', 16) ?>
-        <span>سفارشات جدید</span>
-    </a>
-    <a href="product.php" class="quick-btn">
-        <?= icon('box', 16) ?>
-        <span>محصولات و پلن‌ها</span>
-    </a>
-    <a href="payment.php" class="quick-btn">
-        <?= icon('card', 16) ?>
-        <span>تراکنش‌ها <?= $pendingPay > 0 ? "<span class='tag tag-no' style='font-size:0.65rem;margin-right:4px'>$pendingPay</span>" : '' ?></span>
-    </a>
-    <a href="settings.php" class="quick-btn">
-        <?= icon('settings', 16) ?>
-        <span>تنظیمات پیشرفته</span>
-    </a>
-</div>
+<section id="container">
+    <?php include("header.php"); ?>
 
-<!-- Key Performance Indicators -->
-<div class="stats fade-up d2">
-    <div class="stat">
-        <div class="stat-label"><?= $textbotlang['panel']['dashTotalUsers'] ?></div>
-        <div class="stat-num"><?= number_format($totalUsers) ?></div>
-        <div class="stat-meta"><?= $newToday > 0 ? '<span class="up">+' . $newToday . $textbotlang['panel']['dashTodaySpan'] : $textbotlang['panel']['dashNoChange'] ?>
-        </div>
-    </div>
-    <div class="stat ok">
-        <div class="stat-label"><?= $textbotlang['panel']['dashTotalRevenue'] ?></div>
-        <div class="stat-num">
-            <?= $totalRevenue >= 1_000_000
-                ? number_format($totalRevenue / 1_000_000, 1) . ' <small>' . $textbotlang['panel']['dashUnitMillionToman'] . '</small>'
-                : number_format($totalRevenue) . ' <small>' . $textbotlang['panel']['dashUnitToman'] . '</small>' ?>
-        </div>
-        <div class="stat-meta"><?= $textbotlang['panel']['dashTotalSales'] ?></div>
-    </div>
-    <div class="stat warn">
-        <div class="stat-label"><?= $textbotlang['panel']['dashActiveService'] ?></div>
-        <div class="stat-num"><?= number_format($activeNow) ?></div>
-        <div class="stat-meta">اشتراک‌های فعال آنلاین</div>
-    </div>
-    <div class="stat <?= $pendingPay > 0 ? 'no' : '' ?>">
-        <div class="stat-label"><?= $pendingPay > 0 ? $textbotlang['panel']['dashPendingPayment'] : $textbotlang['panel']['dashTodayTransaction'] ?></div>
-        <div class="stat-num" style="<?= $pendingPay > 0 ? 'color:var(--no)' : '' ?>">
-            <?= number_format($pendingPay > 0 ? $pendingPay : $txToday) ?>
-        </div>
-        <div class="stat-meta">
-            <?= $pendingPay > 0 ? $textbotlang['panel']['dashReviewLink'] : $textbotlang['panel']['dashStatusRegistered'] ?>
-        </div>
-    </div>
-</div>
+    <section id="main-content">
+        <div class="wrapper">
 
-<!-- 7-Day Revenue & Growth SVG Chart Card -->
-<div class="dash-chart-card fade-up d3">
-    <div class="chart-header">
-        <div class="chart-title">
-            <?= icon('activity', 18) ?>
-            <span>روند فروش و عضویت ۷ روز گذشته</span>
-        </div>
-        <div class="chart-legend">
-            <div><span class="legend-dot" style="background:#06B6D4"></span> مبلغ فروش (تومان)</div>
-            <div><span class="legend-dot" style="background:#22C55E"></span> کاربران جدید</div>
-        </div>
-    </div>
-    
-    <div style="width:100%;height:140px;position:relative;margin-top:10px">
-        <?php
-        $ptsSales = [];
-        $ptsUsers = [];
-        $n = count($trendDays);
-        $w = 1000;
-        $h = 110;
-        
-        $maxUsers = 1;
-        foreach ($trendDays as $td) {
-            if ($td['users'] > $maxUsers) $maxUsers = $td['users'];
-        }
-
-        for ($idx = 0; $idx < $n; $idx++) {
-            $x = ($n > 1) ? ($idx / ($n - 1)) * ($w - 80) + 40 : $w / 2;
-            $valSales = $trendDays[$idx]['sales'];
-            $ySales = $h - ($valSales / $maxSales) * ($h - 20) + 10;
-            $ptsSales[] = round($x, 1) . ',' . round($ySales, 1);
-
-            $valUsers = $trendDays[$idx]['users'];
-            $yUsers = $h - ($valUsers / $maxUsers) * ($h - 20) + 10;
-            $ptsUsers[] = round($x, 1) . ',' . round($yUsers, 1);
-        }
-        $polylineSales = implode(' ', $ptsSales);
-        $polylineUsers = implode(' ', $ptsUsers);
-        $areaSales = $ptsSales[0] . ' ' . $polylineSales . ' ' . end($ptsSales) . ' ' . round(($w - 40), 1) . ',' . ($h + 10) . ' 40,' . ($h + 10);
-        ?>
-        <svg viewBox="0 0 <?= $w ?> <?= $h + 30 ?>" style="width:100%;height:100%;overflow:visible" preserveAspectRatio="none">
-            <defs>
-                <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.35"/>
-                    <stop offset="100%" stop-color="#06B6D4" stop-opacity="0.0"/>
-                </linearGradient>
-            </defs>
-            <!-- Grid lines -->
-            <line x1="40" y1="<?= $h/2 ?>" x2="<?= $w-40 ?>" y2="<?= $h/2 ?>" stroke="rgba(255,255,255,0.06)" stroke-dasharray="4"/>
-            <line x1="40" y1="<?= $h+10 ?>" x2="<?= $w-40 ?>" y2="<?= $h+10 ?>" stroke="rgba(255,255,255,0.08)"/>
-            
-            <!-- Area fill -->
-            <polygon points="<?= $areaSales ?>" fill="url(#salesGrad)"/>
-            
-            <!-- Sales line -->
-            <polyline fill="none" stroke="#06B6D4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="<?= $polylineSales ?>"/>
-            <!-- Users line -->
-            <polyline fill="none" stroke="#22C55E" stroke-width="2" stroke-dasharray="5 3" stroke-linecap="round" stroke-linejoin="round" points="<?= $polylineUsers ?>"/>
-
-            <!-- Points & Labels -->
-            <?php for ($idx = 0; $idx < $n; $idx++): 
-                $coordsSales = explode(',', $ptsSales[$idx]);
-                $lbl = $trendDays[$idx]['label'];
-            ?>
-                <circle cx="<?= $coordsSales[0] ?>" cy="<?= $coordsSales[1] ?>" r="4" fill="#06B6D4" stroke="#0B0F19" stroke-width="2"/>
-                <text x="<?= $coordsSales[0] ?>" y="<?= $h + 26 ?>" text-anchor="middle" fill="#94A3B8" font-size="11" font-family="var(--font)"><?= $lbl ?></text>
-            <?php endfor; ?>
-        </svg>
-    </div>
-</div>
-
-<!-- Two-Column Recent Data -->
-<div class="two-col">
-    <!-- Recent Orders -->
-    <div class="card fade-up d3">
-        <div class="card-head">
-            <div>
-                <div class="card-title"><?= $textbotlang['panel']['dashRecentOrders'] ?></div>
-                <div class="card-subtitle"><?= count($recentInvoices) ?> <?= $textbotlang['panel']['dashRecentItem'] ?></div>
+            <div class="page-head">
+                <div>
+                    <div class="page-head__title">
+                        <?php echo icon('grid', 'svg-icon svg-lg'); ?>
+                        داشبورد
+                    </div>
+                    <div class="page-head__sub"><?php echo function_exists('jdate') ? jdate('l، j F Y') : date('Y/m/d'); ?></div>
+                </div>
+                <div class="chip-row">
+                    <a href="invoice.php" class="chip"><?php echo icon('receipt', 'svg-icon svg-sm'); ?><span>سفارشات</span></a>
+                    <a href="reports.php" class="chip"><?php echo icon('chart-bar', 'svg-icon svg-sm'); ?><span>گزارش‌ها</span></a>
+                </div>
             </div>
-            <a href="invoice.php" class="btn-link" style="font-size:.78rem"><?= $textbotlang['panel']['dashViewAll'] ?></a>
-        </div>
-        <div class="tbl-wrap">
-            <table class="tbl-sm">
-                <thead>
-                    <tr>
-                        <th><?= $textbotlang['panel']['dashColUser'] ?></th>
-                        <th><?= $textbotlang['panel']['dashColProduct'] ?></th>
-                        <th><?= $textbotlang['panel']['dashColAmount'] ?></th>
-                        <th><?= $textbotlang['panel']['dashColStatus'] ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($recentInvoices)): ?>
-                        <tr>
-                            <td colspan="4">
-                                <div class="empty" style="padding:24px">
-                                    <p><?= $textbotlang['panel']['dashNoOrdersYet'] ?></p>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php else:
-                        $statusMap = [
-                            'active'         => ['tag-ok',    $textbotlang['panel']['dashStatusActive']],
-                            'end_of_time'    => ['tag-warn',  $textbotlang['panel']['dashStatusExpired']],
-                            'end_of_volume'  => ['tag-no',    $textbotlang['panel']['dashStatusVolumeFinished']],
-                            'sendedwarn'     => ['tag-warn',  $textbotlang['panel']['dashStatusWarning']],
-                            'send_on_hold'   => ['tag-plain', $textbotlang['panel']['dashStatusWaiting']],
-                            'unpaid'         => ['tag-warn',  $textbotlang['panel']['invoiceStatusUnpaid']],
-                        ];
-                        foreach ($recentInvoices as $inv):
-                            [$tagClass, $label] = $statusMap[$inv['Status'] ?? ''] ?? ['tag-plain', $inv['Status'] ?? '—'];
-                            ?>
-                            <tr>
-                                <td class="cm cf">
-                                    <a href="user.php?id=<?= urlencode($inv['id_user'] ?? '') ?>" style="color:var(--text);font-weight:600">
-                                        <?= htmlspecialchars($inv['id_user'] ?? '—') ?>
-                                    </a>
-                                </td>
-                                <td class="cs"
-                                    style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                                    <?= htmlspecialchars(trunc($inv['name_product'] ?? '—', 20)) ?>
-                                </td>
-                                <td class="cn" style="white-space:nowrap">
-                                    <?= number_format((int) ($inv['price_product'] ?? 0)) ?> <span class="cf"><?= $textbotlang['panel']['dashTomanShort'] ?></span>
-                                </td>
-                                <td><span class="tag <?= $tagClass ?>"><?= $label ?></span></td>
-                            </tr>
-                        <?php endforeach; endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
 
-    <!-- Recent Users -->
-    <div class="card fade-up d4">
-        <div class="card-head">
-            <div>
-                <div class="card-title"><?= $textbotlang['panel']['dashRecentUsers'] ?></div>
-                <div class="card-subtitle"><?= count($recentUsers) ?> <?= $textbotlang['panel']['dashRecentItem2'] ?></div>
-            </div>
-            <a href="users.php" class="btn-link" style="font-size:.78rem"><?= $textbotlang['panel']['dashViewAll2'] ?></a>
-        </div>
-        <div class="tbl-wrap">
-            <table class="tbl-sm">
-                <thead>
-                    <tr>
-                        <th><?= $textbotlang['panel']['dashColId'] ?></th>
-                        <th><?= $textbotlang['panel']['dashColName'] ?></th>
-                        <th><?= $textbotlang['panel']['dashColBalance'] ?></th>
-                        <th><?= $textbotlang['panel']['dashColGroup'] ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($recentUsers)): ?>
-                        <tr>
-                            <td colspan="4">
-                                <div class="empty" style="padding:24px">
-                                    <p><?= $textbotlang['panel']['dashNoUsersYet'] ?></p>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php else:
-                        foreach ($recentUsers as $u):
-                            $agent = $u['agent'] ?? 'f';
-                            $isBlocked = ($u['User_Status'] ?? '') === 'block';
-                            $name = $u['namecustom'] ?? '';
-                            if ($name === 'none') $name = '';
-                            $uname = $u['username'] ?? '';
-                            if ($uname === 'none') $uname = '';
-                            ?>
-                            <tr>
-                                <td class="cm cf">
-                                    <a href="user.php?id=<?= urlencode($u['id']) ?>" style="color:var(--text);font-weight:600">
-                                        <?= htmlspecialchars($u['id']) ?>
-                                    </a>
-                                </td>
-                                <td>
-                                    <?php if ($name): ?>
-                                        <span class="cs"><?= htmlspecialchars(trunc($name, 14)) ?></span>
-                                    <?php elseif ($uname): ?>
-                                        <span class="cm" style="color:var(--ac)">@<?= htmlspecialchars(trunc($uname, 12)) ?></span>
-                                    <?php else: ?>
-                                        <span class="cf">—</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="cn" style="white-space:nowrap">
-                                    <?= number_format((int) ($u['Balance'] ?? 0)) ?> <span class="cf"><?= $textbotlang['panel']['dashTomanShort2'] ?></span>
-                                </td>
-                                <td>
-                                    <?php if ($isBlocked): ?>
-                                        <span class="tag tag-no" style="font-size:.65rem"><?= $textbotlang['panel']['dashLabelBlocked'] ?></span>
-                                    <?php else: ?>
-                                        <span class="tag <?= user_role_tag($agent) ?>" style="font-size:.65rem">
-                                            <?= user_role_label($agent) ?>
-                                        </span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Active Marzban Nodes Overview -->
-<?php if (!empty($panelsList)): ?>
-<div class="card fade-up d4" style="margin-top:24px">
-    <div class="card-head">
-        <div class="card-title" style="display:flex;align-items:center;gap:8px">
-            <?= icon('server', 18) ?>
-            <span>نودها و سرورهای متصل (Marzban Nodes)</span>
-        </div>
-        <span class="tag tag-ok"><?= count($panelsList) ?> سرور متصل</span>
-    </div>
-    <div class="card-body">
-        <div class="node-grid">
-            <?php foreach ($panelsList as $node): ?>
-                <div class="node-card">
-                    <div>
-                        <div style="font-weight:700;color:var(--text);font-size:0.88rem;margin-bottom:2px">
-                            <?= htmlspecialchars($node['name_panel'] ?? 'Server Node') ?>
+            <div class="stats-grid">
+                <div class="stat-card observe-in">
+                    <div class="stat-card__top">
+                        <div class="stat-card__info">
+                            <span class="stat-card__label">تعداد کل کاربران</span>
+                            <span class="stat-card__value" data-count="<?php echo (int)$resultcount; ?>"><?php echo number_format($resultcount); ?></span>
                         </div>
-                        <div style="font-size:0.75rem;color:var(--mute);font-family:var(--mono)">
-                            <?= htmlspecialchars(trunc($node['url_panel'] ?? '127.0.0.1', 28)) ?>
+                        <span class="stat-card__icon icon-blue"><?php echo icon('users', 'svg-icon'); ?></span>
+                    </div>
+                    <?php echo faoxima_trend_pill($newUsersWeek > 0 ? 1 : 0, '+' . number_format($newUsersWeek) . ' این هفته'); ?>
+                </div>
+
+                <div class="stat-card observe-in">
+                    <div class="stat-card__top">
+                        <div class="stat-card__info">
+                            <span class="stat-card__label">تعداد کل سفارشات</span>
+                            <span class="stat-card__value" data-count="<?php echo (int)$resultcontsell; ?>"><?php echo number_format($resultcontsell); ?></span>
+                        </div>
+                        <span class="stat-card__icon icon-rose"><?php echo icon('cart-check-round', 'svg-icon'); ?></span>
+                    </div>
+                    <?php echo faoxima_trend_pill($ordTrend); ?>
+                </div>
+
+                <div class="stat-card observe-in">
+                    <div class="stat-card__top">
+                        <div class="stat-card__info">
+                            <span class="stat-card__label">جمع کل فروش</span>
+                            <span class="stat-card__value" data-count="<?php echo (int)$total_income; ?>" data-suffix=" T"><?php echo number_format($total_income); ?> T</span>
+                        </div>
+                        <span class="stat-card__icon icon-green"><svg class="svg-icon" viewBox="0 0 1024 1024" aria-hidden="true"><g fill="currentColor" stroke="none"><path d="M136.948 908.811c5.657 0 10.24-4.583 10.24-10.24V610.755c0-5.657-4.583-10.24-10.24-10.24h-81.92a10.238 10.238 0 00-10.24 10.24v287.816c0 5.657 4.583 10.24 10.24 10.24h81.92zm0 40.96h-81.92c-28.278 0-51.2-22.922-51.2-51.2V610.755c0-28.278 22.922-51.2 51.2-51.2h81.92c28.278 0 51.2 22.922 51.2 51.2v287.816c0 28.278-22.922 51.2-51.2 51.2zm278.414-40.96c5.657 0 10.24-4.583 10.24-10.24V551.322c0-5.657-4.583-10.24-10.24-10.24h-81.92a10.238 10.238 0 00-10.24 10.24v347.249c0 5.657 4.583 10.24 10.24 10.24h81.92zm0 40.96h-81.92c-28.278 0-51.2-22.922-51.2-51.2V551.322c0-28.278 22.922-51.2 51.2-51.2h81.92c28.278 0 51.2 22.922 51.2 51.2v347.249c0 28.278-22.922 51.2-51.2 51.2zm278.414-40.342c5.657 0 10.24-4.583 10.24-10.24V492.497c0-5.651-4.588-10.24-10.24-10.24h-81.92c-5.652 0-10.24 4.589-10.24 10.24v406.692c0 5.657 4.583 10.24 10.24 10.24h81.92zm0 40.96h-81.92c-28.278 0-51.2-22.922-51.2-51.2V492.497c0-28.271 22.924-51.2 51.2-51.2h81.92c28.276 0 51.2 22.929 51.2 51.2v406.692c0 28.278-22.922 51.2-51.2 51.2zm278.414-40.958c5.657 0 10.24-4.583 10.24-10.24V441.299c0-5.657-4.583-10.24-10.24-10.24h-81.92a10.238 10.238 0 00-10.24 10.24v457.892c0 5.657 4.583 10.24 10.24 10.24h81.92zm0 40.96h-81.92c-28.278 0-51.2-22.922-51.2-51.2V441.299c0-28.278 22.922-51.2 51.2-51.2h81.92c28.278 0 51.2 22.922 51.2 51.2v457.892c0 28.278-22.922 51.2-51.2 51.2zm-6.205-841.902C677.379 271.088 355.268 367.011 19.245 387.336c-11.29.683-19.889 10.389-19.206 21.679s10.389 19.889 21.679 19.206c342.256-20.702 670.39-118.419 964.372-284.046 9.854-5.552 13.342-18.041 7.79-27.896s-18.041-13.342-27.896-7.79z"/><path d="M901.21 112.64l102.39.154c11.311.017 20.494-9.138 20.511-20.449s-9.138-20.494-20.449-20.511l-102.39-.154c-11.311-.017-20.494 9.138-20.511 20.449s9.138 20.494 20.449 20.511z"/><path d="M983.151 92.251l-.307 101.827c-.034 11.311 9.107 20.508 20.418 20.542s20.508-9.107 20.542-20.418l.307-101.827c.034-11.311-9.107-20.508-20.418-20.542s-20.508 9.107-20.542 20.418z"/></g></svg></span>
+                    </div>
+                    <?php echo faoxima_trend_pill($incTrend); ?>
+                </div>
+
+                <div class="stat-card observe-in">
+                    <div class="stat-card__top">
+                        <div class="stat-card__info">
+                            <span class="stat-card__label">کاربران جدید (۲۴ ساعت)</span>
+                            <span class="stat-card__value" data-count="<?php echo (int)$resultcountday; ?>"><?php echo number_format($resultcountday); ?></span>
+                        </div>
+                        <span class="stat-card__icon icon-purple"><?php echo icon('user-plus', 'svg-icon'); ?></span>
+                    </div>
+                    <?php echo faoxima_trend_pill($u24Trend); ?>
+                </div>
+            </div>
+
+            <div class="dash-row">
+                <div class="panel observe-in">
+                    <div class="panel__head">
+                        <div>
+                            <div class="panel__title">روند درآمد</div>
+                            <div class="panel__sub" id="revenueSub">۷ روز اخیر</div>
+                        </div>
+                        <div class="chart-toolbar">
+                            <button class="chart-range-btn" data-range="24h">۲۴ ساعت</button>
+                            <button class="chart-range-btn active" data-range="7d">هفته</button>
+                            <button class="chart-range-btn" data-range="3m">۳ ماه</button>
+                            <button class="chart-range-btn" id="customRangeBtn">روز دلخواه</button>
+                            <span id="customRangeBox" style="display:none; align-items:center; gap:6px;">
+                                <input type="number" id="customRangeInput" min="1" max="365" placeholder="روز" inputmode="numeric" style="width:62px; padding:6px 8px; border-radius:8px; border:1px solid var(--border-soft); background:var(--surface-1); color:var(--text-main); font-family:inherit; font-size:12px; text-align:center;">
+                                <button class="chart-range-btn" id="customRangeApply">نمایش</button>
+                            </span>
                         </div>
                     </div>
-                    <span class="pulse-dot"></span>
+                    <div class="chart-box"><canvas id="revenueChart"></canvas></div>
                 </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-</div>
-<?php endif; ?>
 
-<?php include __DIR__ . '/inc/layout_foot.php'; ?>
+                <div class="panel observe-in">
+                    <div class="panel__head">
+                        <div>
+                            <div class="panel__title">دسته‌بندی فروش</div>
+                            <div class="panel__sub">بر اساس مبلغ فروش</div>
+                        </div>
+                    </div>
+                    <?php if (!empty($catData)): ?>
+                        <div class="donut-wrap"><canvas id="categoryChart"></canvas></div>
+                    <?php else: ?>
+                        <div class="hdr-dd__empty" style="padding:60px 10px;">داده‌ای برای نمایش نیست</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="dash-row">
+                <div class="panel observe-in">
+                    <div class="panel__head">
+                        <div>
+                            <div class="panel__title">فروش هفتگی</div>
+                            <div class="panel__sub">تعداد فروش در هر روز هفتهٔ جاری (شنبه تا جمعه)</div>
+                        </div>
+                    </div>
+                    <div class="chart-box sm"><canvas id="trafficChart"></canvas></div>
+                </div>
+
+                <div class="panel observe-in">
+                    <div class="panel__head">
+                        <div>
+                            <div class="panel__title">فعالیت اخیر</div>
+                            <div class="panel__sub">۲۴ ساعت اخیر</div>
+                        </div>
+                    </div>
+                    <?php if (!empty($activity)): ?>
+                        <div class="activity-list" id="dashActivity">
+                            <?php foreach ($activity as $act): ?>
+                                <div class="activity-item">
+                                    <span class="activity-ico <?php echo $act['ico']; ?>"><?php echo icon($act['icon'], 'svg-icon'); ?></span>
+                                    <div class="activity-body">
+                                        <b><?php echo htmlspecialchars($act['title'], ENT_QUOTES, 'UTF-8'); ?></b>
+                                        <small><?php echo htmlspecialchars($act['sub'], ENT_QUOTES, 'UTF-8'); ?></small>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="mdt-foot"><span class="mdt-info"></span><div class="mdt-pager" data-pager="dashActivity" data-page-size="3"></div></div>
+                    <?php else: ?>
+                        <div class="hdr-dd__empty" style="padding:40px 10px;">فعالیتی در ۲۴ ساعت گذشته ثبت نشده است</div>
+                    <?php endif; ?>
+                    <div class="activity-foot"><a href="reports.php">مشاهدهٔ گزارش‌ها</a></div>
+                </div>
+            </div>
+
+            <div class="panel observe-in">
+                <div class="panel__head">
+                    <div>
+                        <div class="panel__title">آخرین سفارشات</div>
+                        <div class="panel__sub">۲۴ ساعت اخیر</div>
+                    </div>
+                    <a href="invoice.php" class="btn btn-primary btn-sm"><?php echo icon('plus', 'svg-icon svg-xs'); ?> سفارشات</a>
+                </div>
+                <?php if (!empty($latestOrders)): ?>
+                <div class="table-wrap" style="overflow-x:auto;">
+                    <table class="app-table app-table--summary" id="dashOrders">
+                        <thead>
+                            <tr>
+                                <th>کاربر</th>
+                                <th>محصول</th>
+                                <th>مبلغ</th>
+                                <th>وضعیت</th>
+                                <th>تاریخ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($latestOrders as $od):
+                                list($stLabel, $stClass) = faoxima_status_badge((string)($od['status'] ?? ''));
+                                $oTime = (int)($od['time_sell'] ?? 0);
+                            ?>
+                            <tr data-detail-row data-detail-title="<?php echo htmlspecialchars((string)(!empty($od['username']) ? $od['username'] : ($od['id_user'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>">
+                                <td data-label="کاربر" data-summary="1"><?php echo htmlspecialchars((string)(!empty($od['username']) ? $od['username'] : ($od['id_user'] ?? '')), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td data-label="محصول" data-summary="1"><?php echo htmlspecialchars((string)($od['name_product'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td data-label="مبلغ"><?php echo number_format((float)($od['price_product'] ?? 0)); ?> T</td>
+                                <td data-label="وضعیت" data-summary="1"><span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                                <td data-label="تاریخ" style="color:var(--text-muted); font-size:12px; direction:ltr; text-align:center;"><?php echo $oTime > 0 ? (function_exists('jdate') ? jdate('Y/m/d', $oTime) : date('Y/m/d', $oTime)) : '—'; ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mdt-foot"><span class="mdt-info"></span><div class="mdt-pager" data-pager-rows="dashOrders" data-page-size="3"></div></div>
+                <?php else: ?>
+                    <div class="hdr-dd__empty" style="padding:40px 10px;">سفارشی در ۲۴ ساعت گذشته ثبت نشده است</div>
+                <?php endif; ?>
+            </div>
+
+        </div>
+    </section>
+</section>
+
+<script src="js/chart.min.js?v=flat3"></script>
+<script>
+(function () {
+    if (typeof Chart === 'undefined') return;
+    var FA = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+    function fa(n){ return String(n).replace(/\d/g, function(d){ return FA[+d]; }); }
+    function faShort(v){ var n = Number(v) || 0, a = Math.abs(n); if (a >= 1e6){ var m = n/1e6; return fa((m % 1 === 0) ? m.toFixed(0) : m.toFixed(1)) + 'م'; } if (a >= 1e3){ return fa(Math.round(n/1e3)) + 'هزار'; } return fa(n); }
+    function hexA(hex, a){
+        var m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+        if(!m){ return 'rgba(124,58,237,'+a+')'; }
+        var n = parseInt(m[1],16);
+        return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+    }
+    function accent(){ return (getComputedStyle(document.documentElement).getPropertyValue('--accent')||'#a855f7').trim(); }
+    function colors(){
+        var dark = document.documentElement.getAttribute('data-theme') !== 'light';
+        return {
+            text: dark ? '#94a3b8' : '#475569',
+            grid: dark ? 'rgba(148,163,184,0.12)' : 'rgba(100,116,139,0.18)',
+            tipBg: dark ? '#1d1d1e' : '#ffffff',
+            tipBorder: dark ? '#2a2a2d' : '#e2e8f0'
+        };
+    }
+    Chart.defaults.font.family = "Vazirmatn, Tahoma, sans-serif";
+
+    var PALETTE = ['#6366f1','#a855f7','#06b6d4','#10b981','#f59e0b','#f43f5e'];
+    var revenue, category, traffic;
+    var revLabels = <?php echo $json_labels; ?>;
+    var revData   = <?php echo $json_data; ?>;
+    var currentRange = '7d';
+
+    function buildRevenue(){
+        var el = document.getElementById('revenueChart'); if(!el) return;
+        var c = colors(), ac = accent();
+        if (revenue) revenue.destroy();
+        var g = el.getContext('2d').createLinearGradient(0,0,0,300);
+        g.addColorStop(0, hexA(ac,0.32)); g.addColorStop(1, hexA(ac,0));
+        revenue = new Chart(el, {
+            type:'line',
+            data:{ labels: revLabels, datasets:[{ label:'درآمد', data: revData, borderColor: ac, backgroundColor: g, fill:true, tension:0.4, borderWidth:3, pointRadius:3, pointHoverRadius:6, pointBackgroundColor: ac }]},
+            options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+                plugins:{ legend:{display:false}, tooltip:{ rtl:true, backgroundColor:c.tipBg, titleColor:c.text, bodyColor:c.text, borderColor:c.tipBorder, borderWidth:1, padding:12, cornerRadius:12, callbacks:{ label:function(ctx){ return new Intl.NumberFormat('fa-IR').format(ctx.parsed.y) + ' T'; } } } },
+                scales:{ x:{ grid:{display:false}, ticks:{color:c.text} }, y:{ grid:{color:c.grid}, ticks:{ color:c.text, callback:function(v){ return faShort(v); } } } } }
+        });
+    }
+
+    function buildCategory(){
+        var el = document.getElementById('categoryChart'); if(!el) return;
+        var c = colors();
+        if (category) category.destroy();
+        category = new Chart(el, {
+            type:'doughnut',
+            data:{ labels: <?php echo $json_cat_labels; ?>, datasets:[{ data: <?php echo $json_cat_data; ?>, backgroundColor: PALETTE, borderWidth:0, hoverOffset:10 }]},
+            options:{ responsive:true, maintainAspectRatio:false, cutout:'66%',
+                plugins:{ legend:{ position:'bottom', rtl:true, labels:{ color:c.text, padding:14, usePointStyle:true, font:{size:12} } },
+                    tooltip:{ rtl:true, backgroundColor:c.tipBg, titleColor:c.text, bodyColor:c.text, borderColor:c.tipBorder, borderWidth:1, padding:12, cornerRadius:12, callbacks:{ label:function(ctx){ return ctx.label + ': ' + new Intl.NumberFormat('fa-IR').format(ctx.parsed) + ' T'; } } } } }
+        });
+    }
+
+    function buildTraffic(){
+        var el = document.getElementById('trafficChart'); if(!el) return;
+        var c = colors(), ac = accent();
+        if (traffic) traffic.destroy();
+        traffic = new Chart(el, {
+            type:'bar',
+            data:{ labels: <?php echo $json_week_labels; ?>, datasets:[{ label:'فروش', data: <?php echo $json_week_data; ?>,
+                backgroundColor:function(ctx){ var a=ctx.chart.ctx.createLinearGradient(0,0,0,240); a.addColorStop(0, hexA(ac,0.95)); a.addColorStop(1, hexA(ac,0.35)); return a; }, borderRadius:10, borderSkipped:false }]},
+            options:{ responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{display:false}, tooltip:{ rtl:true, backgroundColor:c.tipBg, titleColor:c.text, bodyColor:c.text, borderColor:c.tipBorder, borderWidth:1, padding:10, cornerRadius:10, callbacks:{ label:function(ctx){ return fa(ctx.parsed.y) + ' فروش'; } } } },
+                scales:{ x:{ grid:{display:false}, ticks:{color:c.text} }, y:{ grid:{color:c.grid}, ticks:{ color:c.text, precision:0, callback:function(v){ return fa(v); } } } } }
+        });
+    }
+
+    function buildAll(){ buildRevenue(); buildCategory(); buildTraffic(); }
+
+    var TITLES = { '24h':'۲۴ ساعت اخیر', '7d':'۷ روز اخیر', '3m':'۳ ماه اخیر' };
+    var subEl = document.getElementById('revenueSub');
+    var rangeBtns = document.querySelectorAll('.chart-range-btn[data-range]');
+    var customBtn = document.getElementById('customRangeBtn');
+    var customBox = document.getElementById('customRangeBox');
+    var customInput = document.getElementById('customRangeInput');
+    var customApply = document.getElementById('customRangeApply');
+
+    function setActive(r){ rangeBtns.forEach(function(b){ b.classList.toggle('active', b.dataset.range === r); }); if (customBtn) customBtn.classList.toggle('active', r === 'custom'); }
+
+    function loadRange(url, range, subText){
+        fetch(url, { credentials:'same-origin', headers:{'Accept':'application/json'} })
+            .then(function(x){ return x.json(); })
+            .then(function(j){ if(!j.ok) throw 0; revLabels=j.labels; revData=j.data; currentRange=range; if(subEl) subEl.textContent=subText; setActive(range); if(revenue){ revenue.data.labels=revLabels; revenue.data.datasets[0].data=revData; revenue.update(); } })
+            .catch(function(){ if(subEl) subEl.textContent='خطا در بارگذاری'; });
+    }
+
+    rangeBtns.forEach(function(b){
+        b.addEventListener('click', function(){
+            var r = b.dataset.range; if (r === currentRange) return;
+            if (customBox) customBox.style.display = 'none';
+            loadRange('index.php?ajax=chart&range=' + encodeURIComponent(r), r, TITLES[r] || '');
+        });
+    });
+
+    function applyCustom(){
+        var d = parseInt(customInput.value, 10);
+        if (isNaN(d) || d < 1) d = 1;
+        if (d > 365) d = 365;
+        customInput.value = d;
+        loadRange('index.php?ajax=chart&range=custom&days=' + d, 'custom', fa(d) + ' روز اخیر');
+    }
+    if (customBtn) {
+        customBtn.addEventListener('click', function(){
+            if (!customBox) return;
+            var open = customBox.style.display === 'none' || customBox.style.display === '';
+            customBox.style.display = open ? 'inline-flex' : 'none';
+            if (open && customInput) customInput.focus();
+        });
+    }
+    if (customApply) customApply.addEventListener('click', applyCustom);
+    if (customInput) customInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); applyCustom(); } });
+
+    document.addEventListener('faoxima:themechange', function(){ buildAll(); });
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', buildAll);
+    else buildAll();
+})();
+</script>
+
+<script>
+(function () {
+    var FA = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+    function faNum(n){ return String(n).replace(/\d/g, function(d){ return FA[+d]; }); }
+    function paginate(items, pager, info, pageSize) {
+        var total = items.length;
+        var pages = Math.max(1, Math.ceil(total / pageSize));
+        var current = 1;
+        function pageList() {
+            var out = [];
+            function add(n){ if (n >= 1 && n <= pages && out.indexOf(n) === -1) out.push(n); }
+            add(1);
+            for (var i = current - 1; i <= current + 1; i++) add(i);
+            add(pages);
+            out.sort(function (a, b) { return a - b; });
+            return out;
+        }
+        function render() {
+            var start = (current - 1) * pageSize;
+            var end = start + pageSize;
+            for (var i = 0; i < total; i++) items[i].style.display = (i >= start && i < end) ? '' : 'none';
+            pager.innerHTML = '';
+            var prev = document.createElement('button');
+            prev.type = 'button';
+            prev.className = 'mdt-page' + (current === 1 ? ' disabled' : '');
+            prev.textContent = 'قبلی';
+            prev.addEventListener('click', function () { if (current > 1) { current--; render(); } });
+            pager.appendChild(prev);
+            var list = pageList(), last = 0;
+            for (var j = 0; j < list.length; j++) {
+                var n = list[j];
+                if (last && n - last > 1) {
+                    var dots = document.createElement('span');
+                    dots.className = 'mdt-dots';
+                    dots.textContent = '…';
+                    pager.appendChild(dots);
+                }
+                (function (num) {
+                    var b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'mdt-page' + (num === current ? ' active' : '');
+                    b.textContent = faNum(num);
+                    b.addEventListener('click', function () { if (num !== current) { current = num; render(); } });
+                    pager.appendChild(b);
+                })(n);
+                last = n;
+            }
+            var next = document.createElement('button');
+            next.type = 'button';
+            next.className = 'mdt-page' + (current === pages ? ' disabled' : '');
+            next.textContent = 'بعدی';
+            next.addEventListener('click', function () { if (current < pages) { current++; render(); } });
+            pager.appendChild(next);
+            if (info) {
+                var from = total ? start + 1 : 0;
+                var to = Math.min(end, total);
+                info.textContent = total ? ('نمایش ' + faNum(from) + ' تا ' + faNum(to) + ' از ' + faNum(total)) : '';
+            }
+        }
+        render();
+    }
+    function setup(pager, items) {
+        var size = parseInt(pager.getAttribute('data-page-size'), 10) || 5;
+        var foot = pager.closest('.mdt-foot');
+        var info = foot ? foot.querySelector('.mdt-info') : null;
+        if (items.length === 0) { if (foot) foot.style.display = 'none'; return; }
+        paginate(items, pager, info, size);
+    }
+    document.querySelectorAll('.mdt-pager[data-pager]').forEach(function (pager) {
+        var host = document.getElementById(pager.getAttribute('data-pager'));
+        if (!host) return;
+        setup(pager, Array.prototype.slice.call(host.querySelectorAll(':scope > .activity-item')));
+    });
+    document.querySelectorAll('.mdt-pager[data-pager-rows]').forEach(function (pager) {
+        var table = document.getElementById(pager.getAttribute('data-pager-rows'));
+        if (!table) return;
+        setup(pager, Array.prototype.slice.call(table.querySelectorAll('tbody > tr')));
+    });
+})();
+</script>
+
+</body>
+</html>
+
+

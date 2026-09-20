@@ -1,186 +1,244 @@
 <?php
-require_once __DIR__ . '/inc/config.php';
-require_once __DIR__ . '/inc/icons.php';
-require_auth();
+ini_set('session.cookie_samesite', 'Lax');
+ini_set('session.cookie_httponly', '1');
+session_start();
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/lib/icons.php';
+require_once __DIR__ . '/lib/pagination.php';
+require_once __DIR__ . '/lib/bulk_delete.php';
+require_once __DIR__ . '/lib/search_filter.php';
+require_once __DIR__ . '/lib/csrf.php';
+require_once __DIR__ . '/../function.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add') {
-  csrf_check_post();
-  $remark = trim($_POST['remark'] ?? '');
-  if ($remark === '') {
-    flash('error', $textbotlang['panel']['categoryNameRequired']);
-    header('Location: category.php');
-    exit;
-  }
-  if (db_count($pdo, "SELECT COUNT(*) FROM category WHERE remark = ?", [$remark])) {
-    flash('error', $textbotlang['panel']['categoryNameExists']);
-    header('Location: category.php');
-    exit;
-  }
-  try {
-    db_query($pdo, "INSERT INTO category (remark) VALUES (?)", [$remark]);
-    flash('success', $textbotlang['panel']['categoryAdded']);
-  } catch (Exception $e) {
-    flash('error', $textbotlang['panel']['productDbError'] . $e->getMessage());
-  }
-  header('Location: category.php');
-  exit;
+$query = $pdo->prepare("SELECT * FROM admin WHERE username=:username");
+$query->bindParam("username", $_SESSION["user"], PDO::PARAM_STR);
+$query->execute();
+$result = $query->fetch(PDO::FETCH_ASSOC);
+
+if (!isset($_SESSION["user"]) || !$result) {
+    header('Location: login.php');
+    return;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit') {
-  csrf_check_post();
-  $cid = (int) ($_POST['edit_id'] ?? 0);
-  $remark = trim($_POST['remark'] ?? '');
-  if ($cid && $remark !== '') {
-    try {
-      db_query($pdo, "UPDATE category SET remark=? WHERE id=?", [$remark, $cid]);
-      flash('success', $textbotlang['panel']['categoryEdited']);
-    } catch (Exception $e) {
-      flash('error', $textbotlang['panel']['productErrorPrefix'] . $e->getMessage());
+fx_csrf_guard();
+
+if (!empty($_POST['action']) && $_POST['action'] === 'add') {
+    $remark = trim((string)($_POST['remark'] ?? ''));
+    if ($remark !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM category WHERE remark = :remark");
+        $stmt->execute([':remark' => $remark]);
+        if ((int)$stmt->fetchColumn() === 0) {
+            $stmt = $pdo->prepare("INSERT IGNORE INTO category (remark) VALUES (:remark)");
+            $stmt->execute([':remark' => $remark]);
+        }
     }
-  }
-  header('Location: category.php');
-  exit;
+    header('Location: category.php');
+    exit;
 }
 
-if (isset($_GET['delete'])) {
-  csrf_check_get();
-  db_query($pdo, "DELETE FROM category WHERE id = ?", [(int) $_GET['delete']]);
-  flash('success', $textbotlang['panel']['categoryDeleted']);
-  header('Location: category.php');
-  exit;
+if (!empty($_POST['action']) && $_POST['action'] === 'edit') {
+    $id     = (int)($_POST['id'] ?? 0);
+    $remark = trim((string)($_POST['remark'] ?? ''));
+    if ($id > 0 && $remark !== '') {
+        $old = $pdo->prepare("SELECT remark FROM category WHERE id = :id");
+        $old->execute([':id' => $id]);
+        $oldRemark = (string)($old->fetchColumn() ?: '');
+        $pdo->prepare("UPDATE category SET remark = :remark WHERE id = :id")
+            ->execute([':remark' => $remark, ':id' => $id]);
+        if ($oldRemark !== '' && $oldRemark !== $remark) {
+            $pdo->prepare("UPDATE product SET category = :new WHERE category = :old")
+                ->execute([':new' => $remark, ':old' => $oldRemark]);
+        }
+    }
+    header('Location: category.php');
+    exit;
 }
 
-$categories = db_fetchAll($pdo, "SELECT * FROM category ORDER BY id");
+if (!empty($_POST['action']) && $_POST['action'] === 'delete') {
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id > 0) {
+        $pdo->prepare("DELETE FROM category WHERE id = :id")->execute([':id' => $id]);
+    }
+    header('Location: category.php');
+    exit;
+}
 
-$pageTitle = $textbotlang['panel']['categoryPageTitle'];
-$pageLede = $textbotlang['panel']['categoryPageLede'];
-$activeNav = 'category';
-include __DIR__ . '/inc/layout_head.php';
+if (!empty($_POST['action']) && $_POST['action'] === 'bulk_delete') {
+    $requestedIds = $_POST['ids'] ?? [];
+    $deletedCount = fx_bulk_delete_ids($pdo, 'category', 'id', $requestedIds);
+    fx_bulk_delete_redirect('category.php', count($requestedIds), $deletedCount);
+}
+
+$catQ = fx_search_current();
+$catWhereSql = '1=1';
+$catParams = [];
+if ($catQ !== '') {
+    $catLike = '%' . $catQ . '%';
+    $catWhereSql .= ' AND (id LIKE :cq1 OR remark LIKE :cq2)';
+    $catParams[':cq1'] = $catLike;
+    $catParams[':cq2'] = $catLike;
+}
+
+$pg = fx_paginate($pdo, "SELECT COUNT(*) FROM category WHERE $catWhereSql", $catParams, 5);
+$query = $pdo->prepare("SELECT * FROM category WHERE $catWhereSql ORDER BY id ASC LIMIT :perPage OFFSET :offset");
+foreach ($catParams as $k => $v) $query->bindValue($k, $v, PDO::PARAM_STR);
+$query->bindValue(':perPage', $pg['perPage'], PDO::PARAM_INT);
+$query->bindValue(':offset', $pg['offset'], PDO::PARAM_INT);
+$query->execute();
+$categories = $query->fetchAll();
 ?>
-
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px" class="fade-up">
-  <div style="font-size:.85rem;color:var(--mute)"><?= count($categories) ?> <?= $textbotlang['panel']['categoryCount'] ?></div>
-  <button class="btn btn-primary" onclick="openModal('addModal')"><?= icon('plus', 14) ?> <?= $textbotlang['panel']['categoryCreateBtn'] ?></button>
-</div>
-
-<div class="card fade-up d1">
-  <?php if (empty($categories)): ?>
-    <div class="empty" style="padding:60px 20px">
-      <svg class="ill" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="40" y="30" width="120" height="100" rx="12" fill="var(--surface-3)" />
-        <rect x="56" y="50" width="88" height="12" rx="6" fill="var(--border-strong)" />
-        <rect x="56" y="72" width="60" height="8" rx="4" fill="var(--border)" />
-        <rect x="56" y="90" width="72" height="8" rx="4" fill="var(--border)" />
-        <rect x="56" y="108" width="44" height="8" rx="4" fill="var(--border)" />
-        <circle cx="155" cy="125" r="22" fill="var(--accent-s)" stroke="var(--accent)" stroke-width="2" />
-        <path d="M147 125h16M155 117v16" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" />
-      </svg>
-      <p><?= $textbotlang['panel']['categoryEmpty'] ?></p>
-      <button class="btn btn-primary" style="margin-top:14px" onclick="openModal('addModal')"><?= icon('plus', 14) ?>
-        <?= $textbotlang['panel']['categoryCreateBtn'] ?></button>
-    </div>
-  <?php else: ?>
-    <div class="toolbar">
-      <div class="toolbar-title"><?= $textbotlang['panel']['categoryPageTitle'] ?> <small>(<?= count($categories) ?>)</small></div>
-      <div class="search-box" style="min-width:220px">
-        <?= icon('search', 14) ?>
-        <input type="text" placeholder="<?= htmlspecialchars($textbotlang['panel']['categorySearchPlaceholder']) ?>" data-filter="catTbl">
-        <button type="button" class="search-clear">✕</button>
-      </div>
-    </div>
-    <div class="tbl-wrap">
-      <table id="catTbl" class="tbl-xl">
-        <thead>
-          <tr>
-            <th style="width:70px">#</th>
-            <th><?= $textbotlang['panel']['categoryColName'] ?></th>
-            <th style="width:110px;text-align:left"><?= $textbotlang['panel']['categoryColActions'] ?></th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php $i = 1;
-          foreach ($categories as $c): ?>
-            <tr>
-              <td class="cf"><?= $i++ ?></td>
-              <td class="cs"><?= htmlspecialchars($c['remark'] ?? '') ?></td>
-              <td>
-                <div style="display:flex;gap:5px;justify-content:flex-end">
-                  <button class="btn btn-ghost btn-sm btn-icon" title="<?= htmlspecialchars($textbotlang['panel']['productEditBtn']) ?>"
-                    onclick="openEditModal(<?= htmlspecialchars(json_encode($c), ENT_QUOTES) ?>)">
-                    <?= icon('edit', 13) ?>
-                  </button>
-                  <a href="category.php?delete=<?= (int) $c['id'] ?>&_csrf=<?= csrf_token() ?>"
-                    class="btn btn-no btn-sm btn-icon" title="<?= htmlspecialchars($textbotlang['panel']['productDeleteBtn']) ?>"
-                    data-confirm="<?= htmlspecialchars($textbotlang['panel']['categoryDeleteConfirm']) ?>">
-                    <?= icon('trash', 13) ?>
-                  </a>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>مدیریت دسته‌بندی‌ها | ربات فاکسیما</title>
+    <link rel="stylesheet" href="css/theme.css?v=flat47">
+    <script src="js/theme.js?v=flat5" defer></script>
+</head>
+<body>
+<section id="container">
+    <?php include("header.php"); ?>
+    <section id="main-content">
+        <div class="wrapper">
+            <div class="page-head">
+                <div>
+                    <div class="page-head__title">
+                        <svg class="svg-icon svg-lg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5C3 3.89543 3.89543 3 5 3H9C10.1046 3 11 3.89543 11 5V9C11 10.1046 10.1046 11 9 11H5C3.89543 11 3 10.1046 3 9V5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 5C13 3.89543 13.8954 3 15 3H19C20.1046 3 21 3.89543 21 5V9C21 10.1046 20.1046 11 19 11H15C13.8954 11 13 10.1046 13 9V5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 15C3 13.8954 3.89543 13 5 13H9C10.1046 13 11 13.8954 11 15V19C11 20.1046 10.1046 21 9 21H5C3.89543 21 3 20.1046 3 19V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 15C13 13.8954 13.8954 13 15 13H19C20.1046 13 21 13.8954 21 15V19C21 20.1046 20.1046 21 19 21H15C13.8954 21 13 20.1046 13 19V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        دسته‌بندی‌ها
+                    </div>
+                    <div class="page-head__sub">مدیریت دسته‌بندی محصولات</div>
                 </div>
-              </td>
-            </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
-  <?php endif; ?>
-</div>
+                <div class="chip-row">
+                    <button onclick="openModal('modal-add-category')" class="btn btn-primary btn-sm">
+                        <?php echo icon('plus', 'svg-icon'); ?> افزودن دسته‌بندی
+                    </button>
+                </div>
+            </div>
 
-<div class="modal-veil" id="addModal">
-  <div class="modal">
-    <div class="modal-head">
-      <h3><?= $textbotlang['panel']['categoryCreateTitle'] ?></h3>
-      <button class="modal-x" onclick="closeModal('addModal')"><?= icon('close', 14) ?></button>
-    </div>
-    <form method="POST">
-      <div class="modal-body">
-        <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
-        <input type="hidden" name="action" value="add">
-        <div class="form-grid">
-          <div class="field full">
-            <label><?= $textbotlang['panel']['categoryNameLabel'] ?></label>
-            <input type="text" name="remark" class="input" placeholder="<?= htmlspecialchars($textbotlang['panel']['categoryNamePlaceholder']) ?>" required>
-          </div>
+            <?php echo fx_bulk_delete_flash_html(); ?>
+
+            <?php echo fx_search_ui('category.php', $catQ, [], 'جستجو در شناسه یا نام دسته‌بندی…'); ?>
+
+            <div class="card">
+                <form method="POST" action="category.php" id="bulk-form">
+                    <?php echo fx_csrf_field(); ?>
+                    <input type="hidden" name="action" value="bulk_delete">
+                    <div class="table-wrap">
+                        <table id="categoriesTable" class="display app-table app-table--summary" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="check-all" onclick="faoximaToggleAll(this)"></th>
+                                    <th>شناسه</th>
+                                    <th>نام دسته‌بندی</th>
+                                    <th>عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($categories as $cat): ?>
+                                <tr data-detail-row data-detail-title="<?php echo htmlspecialchars($cat['remark'], ENT_QUOTES, 'UTF-8'); ?>">
+                                    <td><label class="fx-check-row"><input type="checkbox" name="ids[]" value="<?php echo $cat['id']; ?>"></label></td>
+                                    <td data-label="شناسه" data-summary="1"><?php echo $cat['id']; ?></td>
+                                    <td data-label="نام دسته‌بندی" data-summary="1"><?php echo htmlspecialchars($cat['remark'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td data-label="عملیات" class="cell-actions">
+                                        <div class="cell-actions__group">
+                                            <button type="button"
+                                                class="btn btn-sm btn-soft-info"
+                                                title="ویرایش"
+                                                onclick="faoximaOpenEdit(<?php echo $cat['id']; ?>, <?php echo htmlspecialchars(json_encode($cat['remark'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8'); ?>)">
+                                                <?php echo icon('pen', 'svg-icon'); ?>
+                                            </button>
+                                            <button type="button"
+                                                class="btn btn-sm btn-soft-danger"
+                                                title="حذف"
+                                                onclick="if(confirm('آیا از حذف این دسته‌بندی مطمئن هستید؟')) { document.getElementById('del-id').value=<?php echo $cat['id']; ?>; document.getElementById('delete-form').submit(); }">
+                                                <?php echo icon('trash', 'svg-icon'); ?>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        <?php echo fx_pager_html($pg['page'], $pg['pages'], $pg['total'], count($categories), 'category.php', ['q' => $catQ !== '' ? $catQ : null]); ?>
+                    </div>
+                    <div style="padding:12px 0;">
+                        <button type="submit" class="btn btn-soft-danger btn-sm js-bulk-delete-btn" style="display:none;" onclick="return confirm('آیا از حذف دسته‌بندی‌های انتخاب‌شده مطمئن هستید؟')">
+                            <?php echo icon('trash', 'svg-icon'); ?> حذف انتخاب‌شده‌ها
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-      </div>
-      <div class="modal-foot">
-        <button type="submit" class="btn btn-primary"><?= icon('plus', 13) ?> <?= $textbotlang['panel']['categorySaveBtn'] ?></button>
-        <button type="button" class="btn btn-ghost" onclick="closeModal('addModal')"><?= $textbotlang['panel']['categoryCancelBtn'] ?></button>
-      </div>
-    </form>
-  </div>
-</div>
+    </section>
+</section>
 
-<div class="modal-veil" id="editModal">
-  <div class="modal">
-    <div class="modal-head">
-      <h3><?= $textbotlang['panel']['categoryEditTitle'] ?></h3>
-      <button class="modal-x" onclick="closeModal('editModal')"><?= icon('close', 14) ?></button>
-    </div>
-    <form method="POST">
-      <div class="modal-body">
-        <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
-        <input type="hidden" name="action" value="edit">
-        <input type="hidden" name="edit_id" id="edit_id">
-        <div class="form-grid">
-          <div class="field full">
-            <label><?= $textbotlang['panel']['categoryNameLabel'] ?></label>
-            <input type="text" name="remark" id="edit_remark" class="input" required>
-          </div>
+<form method="POST" action="category.php" id="delete-form">
+    <?php echo fx_csrf_field(); ?>
+    <input type="hidden" name="action" value="delete">
+    <input type="hidden" name="id" id="del-id" value="">
+</form>
+
+<div id="modal-add-category" class="modal-overlay">
+    <div class="modal-box" style="max-width:420px;">
+        <div class="modal-head">
+            <span class="modal-head__title">افزودن دسته‌بندی</span>
+            <button class="modal-close" onclick="closeModal('modal-add-category')">&times;</button>
         </div>
-      </div>
-      <div class="modal-foot">
-        <button type="submit" class="btn btn-primary"><?= icon('check', 13) ?> <?= $textbotlang['panel']['categorySaveChangeBtn'] ?></button>
-        <button type="button" class="btn btn-ghost" onclick="closeModal('editModal')"><?= $textbotlang['panel']['categoryCancelBtn'] ?></button>
-      </div>
-    </form>
-  </div>
+        <form action="category.php" method="POST">
+            <?php echo fx_csrf_field(); ?>
+            <input type="hidden" name="action" value="add">
+            <div class="form-group">
+                <label class="form-label">نام دسته‌بندی</label>
+                <input type="text" name="remark" class="form-control" placeholder="نام دسته‌بندی را وارد کنید" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">افزودن</button>
+        </form>
+    </div>
 </div>
 
+<div id="modal-edit-category" class="modal-overlay">
+    <div class="modal-box" style="max-width:420px;">
+        <div class="modal-head">
+            <span class="modal-head__title">ویرایش دسته‌بندی</span>
+            <button class="modal-close" onclick="closeModal('modal-edit-category')">&times;</button>
+        </div>
+        <form action="category.php" method="POST">
+            <?php echo fx_csrf_field(); ?>
+            <input type="hidden" name="action" value="edit">
+            <input type="hidden" name="id" id="edit-cat-id" value="">
+            <div class="form-group">
+                <label class="form-label">نام دسته‌بندی</label>
+                <input type="text" name="remark" id="edit-cat-remark" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">ذخیره</button>
+        </form>
+    </div>
+</div>
+
+<script src="js/bulk-select.js?v=fx2"></script>
 <script>
-window.openEditModal = function(c) {
-  document.getElementById('edit_id').value = c.id || '';
-  document.getElementById('edit_remark').value = c.remark || '';
-  openModal('editModal');
-};
+function faoximaOpenEdit(id, remark) {
+    document.getElementById('edit-cat-id').value = id;
+    document.getElementById('edit-cat-remark').value = remark;
+    openModal('modal-edit-category');
+}
+function faoximaToggleAll(master, formId) {
+    var scope = formId ? document.getElementById(formId) : document;
+    scope.querySelectorAll('input[name="ids[]"]:not(:disabled)').forEach(function(cb) {
+        if (cb.checked === master.checked) return;
+        cb.checked = master.checked;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+}
+FxBulkSelect.init({
+    scope: 'default',
+    checkboxSelector: 'input[name="ids[]"]',
+    scopeRoot: document.getElementById('bulk-form'),
+    formEl: document.getElementById('bulk-form'),
+    deleteButtonSelector: '.js-bulk-delete-btn',
+    clearOnQueryFlags: ['bulk']
+});
 </script>
-
-<?php include __DIR__ . '/inc/layout_foot.php'; ?>
+</body>
+</html>

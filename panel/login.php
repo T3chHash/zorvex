@@ -1,133 +1,275 @@
 <?php
-session_start();
 
-require_once __DIR__ . '/inc/config.php';
-require_once __DIR__ . '/inc/icons.php';
-
-if (!empty($_SESSION['admin_user'])) {
-  header('Location: index.php');
-  exit;
+if (!defined('FAOXIMA_SKIP_BOTAPI_ROUTER')) {
+    define('FAOXIMA_SKIP_BOTAPI_ROUTER', true);
 }
 
-$error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $username = trim($_POST['username'] ?? '');
-  $password = $_POST['password'] ?? '';
-  $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 
-  if (!csrf_check_value($_POST['_csrf'] ?? '')) {
-    $error = $textbotlang['panel']['loginWrongCredentials'];
-  } elseif ($username === '' || $password === '') {
-    $error = $textbotlang['panel']['loginEnterCredentials'];
-  } elseif (!check_login_rate($ip)) {
+register_shutdown_function(static function () {
+    $err = error_get_last();
+    if (!$err) return;
+    $fatal = [E_ERROR, E_PARSE, E_COMPILE_ERROR, E_CORE_ERROR, E_USER_ERROR];
+    if (!in_array($err['type'], $fatal, true)) return;
 
-    $error = $textbotlang['panel']['loginTooManyAttempts'];
-    error_log("Login rate limit hit for IP: $ip username: $username");
-  } else {
-
-    $admin = select("admin", "*", "username", $username, "select");
-
-    $dummyHash = '$2y$10$dummy.hash.for.timing.attack.prevention.xxxxxxxxxxxxxxxx';
-    $storedHash = $admin ? (string) $admin['password'] : $dummyHash;
-
-    $isCorrect = false;
-    $storedIsHash = str_starts_with($storedHash, '$2') || str_starts_with($storedHash, '$argon2');
-    if ($storedIsHash) {
-      $isCorrect = password_verify($password, $storedHash);
-    } elseif ($admin) {
-      $isCorrect = hash_equals($storedHash, $password);
+    while (ob_get_level() > 0) { @ob_end_clean(); }
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: text/html; charset=utf-8');
     }
+    $msg = htmlspecialchars(
+        $err['message'] . ' @ ' . basename((string)$err['file']) . ':' . (int)$err['line'],
+        ENT_QUOTES, 'UTF-8'
+    );
+    echo '<!DOCTYPE html><html lang="fa" dir="rtl"><meta charset="utf-8">'
+       . '<title>خطای سرور</title>'
+       . '<body style="font-family:sans-serif;background:#0a0a0f;color:#f1f3f8;padding:32px;">'
+       . '<h2>خطای داخلی سرور</h2><pre style="white-space:pre-wrap">' . $msg . '</pre>'
+       . '</body></html>';
+});
 
-    if ($isCorrect && $admin) {
+ini_set('session.cookie_samesite', 'Lax');
+ini_set('session.cookie_httponly', '1');
+session_start();
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/lib/icons.php';
+require_once __DIR__ . '/../function.php';
+require_once __DIR__ . '/../botapi.php';
+require_once __DIR__ . '/../jdf.php';
 
-      if (!str_starts_with($admin['password'], '$2')) {
-        $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
-        update("admin", "password", $hash, "username", $username);
-      }
-      clear_login_rate($ip);
-      session_regenerate_id(true);
-      $_SESSION['admin_user'] = $admin['username'];
-      $_SESSION['login_time'] = time();
-      flash('success', $textbotlang['panel']['loginWelcomeBack'] . $admin['username']);
-      header('Location: index.php');
-      exit;
+$user_ip = $_SERVER['REMOTE_ADDR'] ?? '';
+
+$texterrr = "";
+$ip_denied = false;
+
+if (isset($_POST['login'])) {
+    $username = isset($_POST['username']) ? trim((string)$_POST['username']) : '';
+    $password = isset($_POST['password']) ? (string)$_POST['password'] : '';
+
+    if ($username !== '' && $password !== '') {
+        $query = $pdo->prepare("SELECT * FROM admin WHERE username = :username LIMIT 1");
+        $query->bindValue(':username', $username, PDO::PARAM_STR);
+        $query->execute();
+        $result = $query->fetch(PDO::FETCH_ASSOC);
+
+        $passwordOk = false;
+        if ($result) {
+            $storedHash = (string)($result["password_hash"] ?? '');
+            if ($storedHash !== '' && password_verify($password, $storedHash)) {
+                $passwordOk = true;
+                if (password_needs_rehash($storedHash, PASSWORD_DEFAULT)) {
+                    $rehash = $pdo->prepare("UPDATE admin SET password_hash = :h WHERE id_admin = :id");
+                    $rehash->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => $result['id_admin']]);
+                }
+            } elseif ($storedHash === '' && (string)$password === (string)($result["password"] ?? '') && $password !== '') {
+                $passwordOk = true;
+                $migrate = $pdo->prepare("UPDATE admin SET password_hash = :h WHERE id_admin = :id");
+                $migrate->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => $result['id_admin']]);
+            }
+        }
+
+        $adminIpOk = true;
+        if ($result) {
+            $rawAdminIp = $result['iplogin'] ?? null;
+            if ($rawAdminIp !== null && $rawAdminIp !== '') {
+                $adminIpDecoded = json_decode((string)$rawAdminIp, true);
+                if (is_array($adminIpDecoded)) {
+                    if (in_array('*', $adminIpDecoded, true) || in_array('all', $adminIpDecoded, true) || in_array('unlimited', $adminIpDecoded, true)) {
+                        $adminIpOk = true;
+                    } else {
+                        $adminIpOk = in_array($user_ip, $adminIpDecoded, true);
+                    }
+                } elseif ($rawAdminIp === '*' || $rawAdminIp === 'all' || $rawAdminIp === 'unlimited') {
+                    $adminIpOk = true;
+                } elseif (filter_var($rawAdminIp, FILTER_VALIDATE_IP)) {
+                    $adminIpOk = ($rawAdminIp === $user_ip);
+                }
+            }
+        }
+
+        if (!$result) {
+            $texterrr = 'نام کاربری یا رمزعبور وارد شده اشتباه است!';
+        } elseif (!$passwordOk) {
+            $texterrr = 'رمز صحیح نمی باشد';
+        } elseif (!$adminIpOk) {
+            http_response_code(403);
+            $ip_denied = true;
+        } else {
+
+
+            session_regenerate_id(true);
+            $_SESSION["user"] = $result["username"];
+
+
+            session_write_close();
+
+
+            header('Location: index.php', true, 302);
+
+
+            ignore_user_abort(true);
+            if (function_exists('fastcgi_finish_request')) {
+                @fastcgi_finish_request();
+            } else {
+                if (!headers_sent()) {
+                    @header('Connection: close');
+                    @header('Content-Length: 0');
+                }
+                while (ob_get_level() > 0) { @ob_end_flush(); }
+                @flush();
+            }
+
+
+            try {
+                $setting = select("setting", "*", null, null);
+                $otherreport = select("topicid", "idreport", "report", "otherreport", "select")['idreport'] ?? null;
+                if (!empty($setting['Channel_Report']) && !empty($otherreport)) {
+                    $loginText = "🔐 ورود موفق به پنل تحت وب\n\n"
+                        . "👤 نام کاربری:\n" . $username . "\n\n"
+                        . "🪪 شناسه ادمین:\n" . $result['id_admin'] . "\n\n"
+                        . "🌐 IP ورود:\n" . $user_ip . "\n\n"
+                        . "🕐 زمان ورود:\n" . (function_exists('jdate') ? jdate('Y/m/d H:i:s', time(), '', 'Asia/Tehran', 'en') : date('Y/m/d H:i:s'));
+                    telegram('sendmessage', [
+                        'chat_id'           => $setting['Channel_Report'],
+                        'message_thread_id' => $otherreport,
+                        'text'              => $loginText,
+                        'parse_mode'        => "HTML"
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                @error_log('Login notify failed: ' . $e->getMessage());
+            }
+            exit;
+        }
     } else {
-      $error = $textbotlang['panel']['loginWrongCredentials'];
-      error_log("Failed login for username: $username from IP: $ip");
+        $texterrr = 'نام کاربری یا رمز عبور خالی است.';
     }
-  }
 }
 ?>
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
-
+<html lang="fa" dir="rtl" data-theme="dark" data-color="blue">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-  <meta name="theme-color" content="#0F172A" id="mtc">
-  <title>ورود به پنل مدیریت | ZORVEX Enterprise</title>
-  <link rel="stylesheet" href="css/style.css">
-  <script>(function () { var t = localStorage.getItem('panel-theme') || 'navy'; document.documentElement.setAttribute('data-theme', t); var c = { navy: '#0F172A', purple: '#180D2E', emerald: '#0A1F1C', sunset: '#1A0D0D', slate: '#080808', light: '#F1F5F9', linen: '#FAF7F2', mint: '#F0FDF4', lavender: '#FAF5FF' }; var m = document.getElementById('mtc'); if (m && c[t]) m.content = c[t]; })();</script>
+    <script>
+    (function(){try{var t=localStorage.getItem('faoxima_theme');
+    if(t!=='light'&&t!=='dark')t='dark';
+    document.documentElement.setAttribute('data-theme',t);
+    var c=localStorage.getItem('faoxima_color');
+    if(c)document.documentElement.setAttribute('data-color',c);}catch(e){}})();
+    </script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ورود به پنل مدیریت | فاکسیما</title>
+    <link rel="stylesheet" href="css/theme.css?v=flat47">
+<script src="js/theme.js?v=flat5" defer>
+
+</script>
 </head>
+<body class="login-page">
 
-<body>
-  <div class="auth">
-    <aside class="auth-aside">
-      <div class="auth-mark">
-        <div class="dot">Z</div>
-        <div style="display:flex; flex-direction:column; margin-right:8px;">
-          <span style="font-weight:800; letter-spacing:-0.02em; font-size:1.3rem;">ZORVEX</span>
-          <span style="font-size:0.72rem; color:var(--ac); font-weight:700; letter-spacing:0.12em;">ENTERPRISE PRO</span>
+<?php if ($ip_denied): ?>
+    <div class="ip-card">
+        <span style="font-size:48px; color: var(--accent);"><?php echo icon('shield-halved', 'svg-icon'); ?></span>
+        <h2>دسترسی غیرمجاز</h2>
+        <p>IP فعلی شما در لیست IPهای مجاز این حساب قرار ندارد.<br>برای ورود، از IP مجاز استفاده کنید یا تنظیمات IP این حساب را از طریق ربات مدیریت کنید.</p>
+        <div class="ip-box"><?php echo htmlspecialchars($user_ip, ENT_QUOTES, 'UTF-8'); ?></div>
+    </div>
+<?php else: ?>
+
+    <div class="login-card">
+        <div class="login-terminal-bar">
+            <span class="terminal__lights"><i></i><i></i><i></i></span>
         </div>
-      </div>
-      <div class="auth-quote">
-        <h2 style="font-size:1.35rem; font-weight:700; line-height:1.7; margin-bottom:12px;">پلتفرم هوشمند مدیریت و فروش اتوماتیک کانفیگ و اشتراک VPN</h2>
-        <cite style="font-size:0.8rem; color:var(--dim); font-style:normal;">طراحی مدرن، سرعت فوق‌العاده و اتصال یکپارچه با انواع پروتکل‌ها و پنل‌ها</cite>
-      </div>
-      <div class="auth-foot">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 10px #22c55e; display:inline-block;"></span>
-          <span>نسخه پایدار v0.0.2 Pro — کلیه حقوق محفوظ است © <?= date('Y') ?></span>
+
+        <div class="login-body">
+            <h2>پنل مدیریت فاکسیما</h2>
+            <p>برای ادامه، اطلاعات حساب خود را وارد کنید.</p>
+
+            <?php if (!empty($texterrr)): ?>
+                <div class="alert alert-error">
+                    <?php echo icon('circle-exclamation', 'svg-icon'); ?>
+                    <span><?php echo htmlspecialchars($texterrr, ENT_QUOTES, 'UTF-8'); ?></span>
+                </div>
+            <?php endif; ?>
+
+            <form method="post" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF'], ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="form-group">
+                    <label class="form-label">نام کاربری</label>
+                    <div class="input-icon-wrap">
+                        <?php echo icon('user', 'svg-icon'); ?>
+                        <input type="text" name="username" class="form-control" placeholder="نام کاربری..." required autofocus>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">رمز عبور</label>
+                    <div class="input-icon-wrap">
+                        <?php echo icon('lock', 'svg-icon'); ?>
+                        <input type="password" name="password" id="passwordInput" class="form-control" placeholder="••••••••" required>
+                        <button type="button" class="toggle-pass" onclick="togglePass()" aria-label="نمایش رمز">
+                            <span id="eye-icon"><?php echo icon('eye', 'svg-icon'); ?></span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" name="login" class="btn btn-primary btn-block mt-2">
+                    <?php echo icon('arrow-left', 'svg-icon'); ?>
+                    ورود به پنل
+                </button>
+            </form>
+
+            <p class="text-muted mt-2" style="font-size:11px;">
+                <?php echo icon('circle-info', 'svg-icon'); ?>
+                IP شما: <span style="direction:ltr;"><?php echo htmlspecialchars($user_ip, ENT_QUOTES, 'UTF-8'); ?></span>
+            </p>
+
+            
+            <div class="login-social" style="display:flex; gap:10px; justify-content:center; margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
+                <a href="https://t.me/faoxima" target="_blank" rel="noopener noreferrer"
+                   aria-label="کانال تلگرام فاکسیما"
+                   title="کانال تلگرام فاکسیما"
+                   style="display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:10px; background:var(--accent-soft, rgba(59,130,246,0.12)); color:var(--accent, #3b82f6); transition:transform .15s ease, background .15s ease;"
+                   onmouseover="this.style.transform='translateY(-2px)';"
+                   onmouseout="this.style.transform='translateY(0)';">
+                    <?php echo icon('telegram', 'svg-icon'); ?>
+                </a>
+                <a href="https://github.com/Mmd-Amir/Faoxima" target="_blank" rel="noopener noreferrer"
+                   aria-label="مخزن گیت‌هاب فاکسیما"
+                   title="مخزن گیت‌هاب فاکسیما"
+                   style="display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:10px; background:var(--accent-soft, rgba(59,130,246,0.12)); color:var(--accent, #3b82f6); transition:transform .15s ease, background .15s ease;"
+                   onmouseover="this.style.transform='translateY(-2px)';"
+                   onmouseout="this.style.transform='translateY(0)';">
+                    <?php echo icon('github', 'svg-icon'); ?>
+                </a>
+            </div>
+
+            <p class="text-muted" style="text-align:center; font-size:11px; margin-top:14px; direction:ltr; font-family:'JetBrains Mono',monospace;">
+                <?php
+                    $__loginVer = trim((string)@file_get_contents(__DIR__ . '/../version'));
+                    if ($__loginVer === '') $__loginVer = '1.0.5';
+                    echo 'v' . htmlspecialchars(ltrim($__loginVer, 'vV'), ENT_QUOTES, 'UTF-8');
+                ?>
+            </p>
         </div>
-      </div>
-    </aside>
-    <main class="auth-main">
-      <div class="auth-box" style="animation:fadeUp .5s ease-out">
-        <div style="text-align:center; margin-bottom:24px;">
-          <div style="width:56px; height:56px; border-radius:16px; background:var(--grad); color:#fff; font-size:1.7rem; font-weight:800; display:inline-grid; place-items:center; box-shadow:0 0 24px var(--acg); margin-bottom:12px;">Z</div>
-          <h1 style="font-size:1.5rem; font-weight:800; margin-bottom:6px;">ورود به مدیریت Zorvex</h1>
-          <p class="lede" style="margin-bottom:0; font-size:0.85rem; color:var(--mute);">جهت دسترسی به داشبورد، مشخصات مدیر را وارد نمایید</p>
-        </div>
-        <?php if ($error): ?>
-          <div class="notice notice-no" style="margin-bottom:20px"><?= htmlspecialchars($error) ?></div>
-        <?php endif; ?>
-        <form class="auth-form" method="POST" autocomplete="on">
-          <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
-          <div class="field">
-            <label for="username">نام کاربری ادمین</label>
-            <input type="text" id="username" name="username" class="input" placeholder="admin"
-              value="<?= htmlspecialchars($_POST['username'] ?? '') ?>" autocomplete="username" required autofocus
-              maxlength="100">
-          </div>
-          <div class="field">
-            <label for="password">رمز عبور امنیتی</label>
-            <input type="password" id="password" name="password" class="input" placeholder="••••••••"
-              autocomplete="current-password" required maxlength="200">
-          </div>
-          <button type="submit" class="btn btn-primary" id="loginBtn" style="width:100%; justify-content:center; padding:12px; font-size:0.95rem; margin-top:8px;">
-            <span id="loginText">ورود به پنل مدیریت</span>
-            <span id="loginSpin"
-              style="display:none;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite"></span>
-          </button>
-        </form>
-        <div class="auth-bottom" style="display:flex; justify-content:space-between; align-items:center; margin-top:24px; padding-top:16px; font-size:0.75rem; color:var(--dim);">
-          <span>اتصال رمزگذاری‌شده SSL 🔒</span>
-          <a href="https://github.com/T3chHash/zorvex" target="_blank" style="color:var(--ac); font-weight:600;">گیت‌هاب Zorvex ↗</a>
-        </div>
-      </div>
-    </main>
-  </div>
-  <script src="js/login.js"></script>
+    </div>
+
+<?php endif; ?>
+
+<script>
+    var SVG_EYE       = '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    var SVG_EYE_SLASH = '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    function togglePass() {
+        var inp = document.getElementById('passwordInput');
+        var icn = document.getElementById('eye-icon');
+        if (!inp || !icn) return;
+        if (inp.type === 'password') {
+            inp.type = 'text';
+            icn.innerHTML = SVG_EYE_SLASH;
+        } else {
+            inp.type = 'password';
+            icn.innerHTML = SVG_EYE;
+        }
+    }
+</script>
 </body>
-
 </html>
+
+

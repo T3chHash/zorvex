@@ -1,310 +1,185 @@
 <div align="center">
 
-# 🤖 Zorvex Bot
+```
+  ____   ____  _____ __      __ ______ __   __
+ |___  // __ \|  __ \\ \    / /|  ____|\ \ / /
+    / /| |  | | |__) |\ \  / / | |__    \ V / 
+   / / | |  | |  _  /  \ \/ /  |  __|    > <  
+  / /__| |__| | | \ \   \  /   | |____  / . \ 
+ /_____\____/|_|  \_\   \/    |______|/_/ \_\
+```
 
-### A powerful Telegram bot for selling VPN services — with fully automated config creation.
+### ⚡ Next-Generation Enterprise VPN Sales & Node Management Platform ⚡
+**Full-Featured Telegram Mini App • Advanced Analytics Admin Panel • Multi-Node Orchestration**
 
-<p>
-  <a href="https://t.me/zorvexpanel">
-    <img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"/>
-  </a>
-  <a href="https://t.me/zorvexpanelgroup">
-    <img src="https://img.shields.io/badge/Telegram-Group-229ED9?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Group"/>
-  </a>
-  <a href="https://zorvex.com/docs/">
-    <img src="https://img.shields.io/badge/Docs-zorvex.com-38BDF8?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation"/>
-  </a>
-</p>
+---
 
-<p>
-  <a href="https://github.com/T3chHash/zorvex/stargazers">
-    <img src="https://img.shields.io/github/stars/T3chHash/zorvex?style=flat-square&color=f5c518" alt="Stars"/>
-  </a>
-  <a href="https://github.com/T3chHash/zorvex/network/members">
-    <img src="https://img.shields.io/github/forks/T3chHash/zorvex?style=flat-square" alt="Forks"/>
-  </a>
-  <a href="https://github.com/T3chHash/zorvex/issues">
-    <img src="https://img.shields.io/github/issues/T3chHash/zorvex?style=flat-square" alt="Issues"/>
-  </a>
-  <a href="https://github.com/T3chHash/zorvex/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/T3chHash/zorvex?style=flat-square" alt="License"/>
-  </a>
-  <a href="https://github.com/T3chHash/zorvex/releases/tag/0.0.3">
-    <img src="https://img.shields.io/badge/Release-v0.0.3-06B6D4?style=flat-square&logo=github&logoColor=white" alt="Release v0.0.3"/>
-  </a>
-  <img src="https://img.shields.io/badge/PHP-8.2-777BB4?style=flat-square&logo=php&logoColor=white" alt="PHP 8.2"/>
-</p>
+[![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3-777bb4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
+[![Release](https://img.shields.io/badge/Release-v0.0.3-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
+[![Telegram Mini App](https://img.shields.io/badge/Telegram-Mini%20App%20Ready-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://telegram.org)
+[![Supported OS](https://img.shields.io/badge/Ubuntu-20.04%20%7C%2022.04%20%7C%2024.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com)
+[![License](https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge)](LICENSE)
+
+[English](#-english-overview) • [فارسی](#-معرفی-پلتفرم-زوروکس-پرو) • [Installation](#-quick-installation) • [Mini App Features](#-telegram-mini-app-capabilities) • [Admin Panel](#-command-center-admin-panel)
+
+---
 
 </div>
 
----
+<a name="-english-overview"></a>
+## 🚀 English Overview
 
-## 📚 Table of Contents
+**Zorvex Pro** is an all-in-one enterprise ecosystem designed for high-scale VPN providers, cloud administrators, and digital service resellers. By bridging Telegram's viral distribution channels with an ultra-responsive, cyber-dark WebApp Single-Page Application (SPA) and an administrative command center, Zorvex empowers sellers to automate customer acquisition, traffic accounting, node distribution, and payment settlement without technical friction.
 
-- [✨ Overview](#-overview)
-- [📖 Documentation](#-documentation)
-- [🧩 Supported Panels](#-supported-panels)
-- [💳 Payment Gateways](#-payment-gateways)
-- [⚙️ Features](#️-features)
-- [🚀 Installation](#-installation)
-  - [Prerequisites](#prerequisites)
-  - [Install](#install)
-  - [Update](#update)
-  - [Remove](#remove)
-  - [Non-Interactive (CLI) Usage](#non-interactive-cli-usage)
-- [💎 Free vs. Pro](#-free-vs-pro)
-- [🌍 Languages](#-languages)
-- [💵 Support the Project](#-support-the-project)
-- [👥 Contributors](#-contributors)
+### 🌟 Core Architectural Highlights
+- **Full Telegram Mini App Integration:** Native mobile-first web app accessible directly inside Telegram with zero authentication overhead, instant subscriptions, and interactive plan builders.
+- **Unified Multi-Node Engine:** Effortlessly orchestrate and distribute load across multiple node managers: **Marzban**, **X-UI / 3X-UI**, **Remnawave**, **PasarGuard**, and **Hiddify**.
+- **Self-Healing Webhook & Diagnostics:** Zero-downtime terminal monitor with real-time SSL expiry checks, webhook status validation, and automated queue recovery.
+- **Autonomous Financial Automation:** Support for card-to-card receipt OCR/manual approvals, instant Iranian payment gateways (ZarinPal, NextPay, Aqayepardakht), and decentralized cryptocurrencies (USDT-TRC20, TON, BTC).
 
 ---
 
-## ✨ Overview
+<a name="-معرفی-پلتفرم-زوروکس-پرو"></a>
+## 💎 معرفی پلتفرم زوروکس پرو (نسخه 0.0.3)
 
-**Zorvex Bot** is a feature-rich Telegram bot for selling VPN subscriptions and automating the entire sales workflow — from purchase and payment to config creation and service management.
+**پلتفرم زوروکس (Zorvex Pro)** نسل نوینی از سیستم‌های مدیریت، فروش و مانیتورینگ سرویس‌های وی‌پی‌ان بر بستر پیام‌رسان تلگرام است. این پلتفرم با ترکیب رابط کاربری مدرن نئونی، مینی‌اپلیکیشن مستقل تک‌صفحه‌ای (SPA) و پنل مدیریتی غنی، تمامی نیازهای یک سرور و ارائه‌دهنده سرویس اینترنت آزاد را پوشش می‌دهد.
 
-It connects directly to your panels, builds configurations automatically, accepts a wide range of payment methods, and gives both customers and admins a clean experience through a **Telegram Mini App** and a **web admin panel**.
+### ✨ امکانات و قابلیت‌های متمایز نسخه 0.0.3:
+1. **مینی‌اپلیکیشن تلگرام (Telegram Mini App):**
+   - تم سایبردارک اختصاصی با قابلیت انتخاب رنگ‌های نئونی پویا (Cyan, Electric Violet, Emerald, Crimson).
+   - رینگ گرافیکی و داینامیک مصرف ترافیک لحظه‌ای با محاسبه گر روزهای باقیمانده.
+   - کیوآرکد (QR Code) اختصاصی، کپی آنی کانفیگ، و دکمه اتصال مستقیم به کلاینت‌های V2Ray, Clash, Sing-box و Shadowrocket.
+   - اسلایدر هوشمند محاسبه قیمت بسته سفارشی (ترافیک دلخواه + مدت زمان دلخواه).
+   - کیف پول داخلی کاربر با قابلیت شارژ مستقیم، کارت به کارت و پرداخت ارز دیجیتال (TRC20 / TON).
+   - سیستم پشتیبانی تیکتینگ یکپارچه درون مینی‌اپلیکیشن.
 
-> Whether you're handing out trial accounts or running a large-scale reseller business, Zorvex Bot has the tools to run it end to end.
+2. **داشبورد پیشرفته مدیریت (Zorvex Pro Panel):**
+   - نمودارهای فروش و عضویت لحظه‌ای مبتنی بر Chart.js (فیلترهای ۲۴ ساعت، ۷ روز، ۳ ماه و بازه سفارشی).
+   - مانیتورینگ سلامت نودها و سرورها به صورت تفکیک‌شده.
+   - مدیریت کامل سرویس‌ها (تمدید، قطع موقت، ویرایش حجم، انتقال به کاربر دیگر).
+   - سیستم پیشرفته کدهای تخفیف، بازاریابی معرف (افیلیت) و کمیسیون خودکار.
+   - پنل تنظیمات ظاهر (`appearance.php`) جهت شخصی‌سازی کامل برند و پالت‌های رنگی.
 
----
-
-## 📖 Documentation
-
-The complete user manual lives at **[zorvex.com/docs](https://zorvex.com/docs/)** — 61 pages covering every part of the bot, written in **Persian (فارسی)**.
-
-It is not a feature list: every menu is documented with the exact order of the steps the bot asks for, what each field accepts, the error message you get when it rejects your input, and the mistake that most often breaks that feature.
-
-| Section | What it covers |
-|---------|----------------|
-| **شروع** (Getting started) | Architecture, requirements, server install, shared-host install, CLI flags, updating and removing |
-| **ساختار** (Structure) | Repository layout, database tables, which file does what |
-| **پنل‌ها** (Panels) | Adding each of the 13 panel types, protocol & inbound setup, per-panel menus, manual config creation, node management |
-| **فروشگاه** (Shop) | Products, categories, trial accounts, On-Hold services, bulk purchase, manual sale, renewals and location changes |
-| **پرداخت** (Payments) | Card-to-card with receipt approval, every online and crypto gateway, wallet and refunds |
-| **مدیریت** (Administration) | Admin roles, feature switches, report channel and topics, texts, forced-join channel, web panel |
-| **رشد و بازاریابی** (Growth) | Referrals, cashback, discount and gift codes, lottery and wheel, reseller system |
-| **نگهداری** (Operations) | Cron jobs, backup and restore, optimization, security checklist, troubleshooting |
-
-> The docs are generated from the bot's own source, so menu names, limits and error strings match the code rather than an older release.
+3. **ترمینال هوشمند لینوکس (CLI Installer):**
+   - منوی تعاملی و زیبا در ترمینال با پایش منابع سیستم (RAM, CPU, Disk, Uptime).
+   - سیستم تشخیص خودکار آپدیت جدید از مخزن گیت‌هاب همراه با بنر هشدار.
+   - تمدید خودکار گواهی امنیتی SSL و عیب‌یابی وب‌هوک تلگرام.
 
 ---
 
-## 🧩 Supported Panels
+<a name="-telegram-mini-app-capabilities"></a>
+## 📱 Telegram Mini App Capabilities
 
-Zorvex Bot integrates with the most popular VPN and network management panels:
+The Zorvex Mini App lives inside the `/app` directory and runs as a modern, decoupled client communicating with `/api/miniapp.php`:
 
-| Panel | Panel |
-|-------|-------|
-| 🟢 **Marzban** | 🟢 **Marzneshin** |
-| 🟢 **Sanaei / Alireza** |
-| 🟢 **S-UI** | 🟢 **Hiddify** |
-| 🟢 **WGDashboard** (WireGuard) | 🟢 **MikroTik** |
-| 🟢 **IBSng** | 🟢 **Pasarguard** |
-
-> Configs are generated automatically and are compatible with all common protocols.
-
----
-
-## 💳 Payment Gateways
-
-| Gateway | Type |
-|---------|------|
-| 💵 **Card-to-Card** | Manual (receipt + admin approval) |
-| 🪙 **NowPayments** | Crypto |
-| 🪙 **Plisio** | Crypto |
-| 🪙 **cubpay** | TRON / crypto |
-| 🇮🇷 **Zarinpal** | Online gateway |
-| 🇮🇷 **Aqayepardakht** | Online gateway |
-| 🇮🇷 **IranPay** | Online gateway |
-
----
-
-## ⚙️ Features
-
-### 🛒 Sales & Configuration
-- ✅ VPN purchase with **fully automated** config creation
-- ✅ Trial / test accounts for new users
-- ✅ Compatibility with all common protocols
-- ✅ QR codes for fast config import
-- ✅ Protocol-based configuration settings
-- ✅ Product, panel & gateway management
-
-### 👤 User Experience
-- ✅ **Telegram Mini App** for a modern, in-app interface
-- ✅ View & manage purchased services:
-  - Renew a service
-  - Buy additional volume
-  - Retrieve config / update subscription links
-- ✅ Wallet & balance system
-- ✅ Detailed purchase & trial reports
-- ✅ Support section, FAQ & customizable tutorials
-- ✅ Phone-number verification
-- ✅ Mandatory channel membership for purchases
-
-### 📈 Growth & Marketing
-- ✅ Affiliate / referral system
-- ✅ Cashback rewards
-- ✅ Discount codes
-- ✅ Gift codes
-- ✅ Lottery system
-- ✅ **Agent / reseller** system
-
-### 🛠️ Administration
-- ✅ **Web admin panel** (login-protected dashboard)
-- ✅ Multiple admins support
-- ✅ Balance & user management
-- ✅ Full text/message customization from the bot
-- ✅ Configurable username-generation methods
-- ✅ Automatic backups
-- ✅ Notification & expiry-reminder services (cron)
-- ✅ On-hold configurations
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    ZORVEX MINI APP (SPA)                    │
+├─────────────────────────────────────────────────────────────┤
+│  [Tab 1: Home]                                              │
+│  • Circular SVG traffic usage ring (% consumed / left)     │
+│  • Expiration countdown & status badge                     │
+│  • One-touch Quick Copy & Interactive QR modal             │
+│  • Server node selection & latency indicator               │
+├─────────────────────────────────────────────────────────────┤
+│  [Tab 2: Services]                                          │
+│  • Unified subscription card list                           │
+│  • Sub-link renewal & protocol switcher                    │
+├─────────────────────────────────────────────────────────────┤
+│  [Tab 3: Smart Shop]                                        │
+│  • Preset categories (High Speed, VIP, Gaming, Unlimited)   │
+│  • Interactive Custom Slider (Volume GB × Validity Days)    │
+│  • Instant coupon code discount verification               │
+├─────────────────────────────────────────────────────────────┤
+│  [Tab 4: Account & Wallet]                                  │
+│  • Wallet balance & instant top-up                          │
+│  • Direct Gateways / Manual Card Upload / Crypto Direct     │
+│  • Affiliate referral link with tier-based commission stats│
+│  • Integrated Support Ticket Desk                           │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 🚀 Installation
+<a name="-command-center-admin-panel"></a>
+## 🖥️ Command Center & Admin Panel
 
-### Prerequisites
+Located at `https://your-domain.com/panel`:
 
-| Requirement | Details |
-|-------------|---------|
-| 🖥️ **OS** | A **clean** Ubuntu **22.04** or **24.04** server |
-| 🌐 **Domain** | A domain name pointed to your server's IP |
-| ⚙️ **Stack** | PHP 8.2, Apache, MySQL, SSL — *installed automatically by the script* |
+| Module | Features & Description |
+| :--- | :--- |
+| **📈 Live Analytics** | Real-time interactive sales trend curves, order counts, user acquisition charts, and revenue metrics. |
+| **🌐 Node Manager** | Seamlessly connect and sync with Marzban, X-UI, Remnawave, and PasarGuard nodes. |
+| **👥 Users & CRM** | Search, ban, unban, adjust wallet balances, view transaction trails, and inspect user configurations. |
+| **🛍️ Products & Plans** | Define fixed pricing tiers, custom per-GB rate formulas, and multi-protocol packages. |
+| **🎫 Ticket System** | Centralized customer support inbox with attachment handling, canned replies, and notification triggers. |
+| **🎨 Appearance Studio**| Customize the primary brand identity, icon marks, logo uploads, and neon color palettes directly from the web browser. |
+| **🛡️ Security & Backup** | IP-restricted administrative logins, session token rotation, and 1-click database snapshots pushed to Telegram. |
 
-> 💡 Start from a fresh server with no existing web server, database, or panel installed.
+---
 
-### Install
+<a name="-quick-installation"></a>
+## ⚡ Quick Installation
 
-Run the following command on your server as **root**:
+Run the automated one-line setup script on a clean **Ubuntu 20.04 / 22.04 / 24.04** server:
 
 ```bash
-curl -o install.sh -L https://raw.githubusercontent.com/T3chHash/zorvex/main/install.sh && bash install.sh
+bash <(curl -Ls https://raw.githubusercontent.com/T3chHash/zorvex/main/install.sh)
 ```
 
-An interactive menu will appear:
+### CLI Command Options
 
-```
-1) Install Zorvex
-2) Update Zorvex
-3) Remove Zorvex
-4) Migrate: Free → Pro (Beta)
-5) Renew SSL certificate
-6) Help & Parameters
-7) Exit
-```
-
-➡️ Select **`1`** to install the bot, then follow the prompts.
-
-### Update
-
-Run the same command and select **`2`**:
+The installer automatically links the `zorvex` binary to your system PATH:
 
 ```bash
-curl -o install.sh -L https://raw.githubusercontent.com/T3chHash/zorvex/main/install.sh && bash install.sh
-```
+# Open interactive terminal management menu
+zorvex
 
-### Remove
+# Perform one-line unattended setup
+zorvex install --token "YOUR_TELEGRAM_BOT_TOKEN" --admin "ADMIN_CHAT_ID" --domain "bot.yourdomain.com"
 
-Run the same command and select **`3`** to completely remove the bot and its services.
+# Check and perform automated system update
+zorvex update
 
-### Non-Interactive (CLI) Usage
+# Renew or re-issue Let's Encrypt SSL certificate
+zorvex renew
 
-You can also drive the installer entirely from the command line — handy for automation and scripted deployments.
-
-**Commands**
-
-| Command | Description |
-|---------|-------------|
-| `install` | Install Zorvex |
-| `update` | Update Zorvex (choose channel / version) |
-| `remove` | Remove Zorvex and its services |
-| `migrate` | Migrate Free → Pro |
-| `renew` | Renew the bot's SSL certificate |
-| `menu` | Open the interactive panel (default) |
-
-**Install parameters**
-
-| Parameter | Description |
-|-----------|-------------|
-| `--name` | Bot username |
-| `--token` | Telegram bot token |
-| `--admin` | Admin chat ID |
-| `--domain` | Domain name (e.g. `bot.example.com`) |
-| `--db-user` | Database username |
-| `--db-pass` | Database password |
-| `--version` | Specific release tag (e.g. `0.0.2`) |
-| `--channel` | `beta` · `release` · `auto` |
-| `-h`, `--help` | Show CLI help and exit |
-
-**Examples**
-
-```bash
-# Auto-pick the best channel
-zorvex install --channel auto
-
-# Fully non-interactive install
-zorvex install --name myvpnbot --token 123:ABC \
-              --admin 111 --domain bot.example.com --version 0.0.2
-
-# Update to a specific version or channel
-zorvex update --version 0.0.2
-zorvex update --channel release
-
-# Remove
-zorvex remove
+# Backup database and dispatch directly to admin Telegram chat
+zorvex backup
 ```
 
 ---
 
-## 💎 Free vs. Pro
+## 🛠️ System Requirements & Architecture
 
-| | Free 🆓 | Pro 💎 |
-|---|:---:|:---:|
-| Automated VPN sales & config creation | ✅ | ✅ |
-| Trial accounts, wallet & service management | ✅ | ✅ |
-| All supported panels & payment gateways | ✅ | ✅ |
-| Advanced customization & analytics | — | ✅ |
-| Enhanced management & extra modules | — | ✅ |
-
-📌 **Pro purchase guide:** [View on Telegram »](https://t.me/zorvexperimium/4)
+- **Operating System:** Ubuntu 20.04 LTS, 22.04 LTS, or 24.04 LTS (x86_64 / ARM64)
+- **Web Server:** Nginx or Apache2 with HTTP/2 and SSL/TLS enabled
+- **Backend Runtime:** PHP 8.2 or PHP 8.3 (with `pdo_mysql`, `curl`, `mbstring`, `zip`, `gd`, `bcmath`, `xml`)
+- **Database:** MySQL 8.0+ or MariaDB 10.6+
+- **Inbound Ports:** 80 (HTTP), 443 (HTTPS)
 
 ---
 
-## 🌍 Languages
+## 🔒 Security & Best Practices
 
-Zorvex Bot ships with full translations for:
-
-🇬🇧 English · 🇮🇷 Persian (فارسی) · 🇷🇺 Russian (Русский) · 🇨🇳 Chinese (中文)
-
----
-
-## 💵 Support the Project
-
-If **Zorvex Bot** helps your business, please consider supporting its development with a crypto donation:
-
-<a href="https://nowpayments.io/donation/mahdi">
-  <img src="https://img.shields.io/badge/Donate-NowPayments-1A1A2E?style=for-the-badge&logo=bitcoin&logoColor=white" alt="Donate"/>
-</a>
-
-Your support keeps the updates and improvements coming. Thank you! 🙌
+1. **Firewall:** Keep only essential ports (22 for SSH, 80 & 443 for web traffic) open via UFW.
+2. **Database Hardening:** The installation script generates unique, high-entropy database passwords and grants restricted privileges.
+3. **Webhook Isolation:** Telegram webhooks are secured with secret tokens preventing spoofed requests.
+4. **IP Login Guard:** Restrict administrative access to your personal static IP through the Admin Panel Security settings.
 
 ---
 
-## 👥 Contributors
+## 🤝 Community & Support
 
-Thanks to everyone who has contributed to making Zorvex Bot better:
-
-<a href="https://github.com/T3chHash/zorvex/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=T3chHash/zorvex" alt="Contributors"/>
-</a>
+- **Telegram Updates Channel:** [@zorvexpanel](https://t.me/zorvexpanel)
+- **Community & Discussion Group:** [@zorvexpanelgroup](https://t.me/zorvexpanelgroup)
+- **Bug Reports & Issues:** [GitHub Issues](https://github.com/T3chHash/zorvex/issues)
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by the Zorvex Panel community**
-
-📖 [Documentation](https://zorvex.com/docs/) · 💬 [Channel](https://t.me/zorvexpanel) · 👥 [Group](https://t.me/zorvexpanelgroup) · ⭐ [Star on GitHub](https://github.com/T3chHash/zorvex)
+**ZORVEX PRO** is crafted with dedication for freedom of information and open communications.  
+Licensed under the [GPL-3.0 License](LICENSE).
 
 </div>

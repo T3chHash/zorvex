@@ -20,6 +20,14 @@ $values = [
     'backserviecstatus' => 'on',
     'chashbackextend' => '0',
     'chashbackextend_agent' => $agentCashback,
+    'brand_name' => 'zorvex',
+    'brand_mark' => 'Z',
+    'brand_title' => 'Zorvex Pro',
+    'brand_logo' => '',
+    'brand_logo_state' => 'default',
+    'brand_accent' => '#00f2fe',
+    'brand_mode' => 'dark',
+    'brand_force_dark' => '1',
 ];
 
 $seed = [];
