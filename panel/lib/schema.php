@@ -145,6 +145,149 @@ function faoxima_schema_ready(PDO $pdo): void {
         "LONGTEXT NULL"
     );
 
+    // Product table columns
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'position',
+        "INT NOT NULL DEFAULT 0"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'ip_limit',
+        "VARCHAR(10) NOT NULL DEFAULT '0'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'hwid_limit',
+        "VARCHAR(10) NOT NULL DEFAULT '0'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'symbolic_limit_enabled',
+        "VARCHAR(10) NOT NULL DEFAULT '0'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'symbolic_limit_users',
+        "VARCHAR(10) NOT NULL DEFAULT '0'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'category',
+        "VARCHAR(255) NOT NULL DEFAULT ''"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'hide_panel',
+        "TEXT NULL"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'note',
+        "TEXT NULL"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'agent',
+        "VARCHAR(50) NOT NULL DEFAULT 'f'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'data_limit_reset',
+        "VARCHAR(50) NOT NULL DEFAULT '0'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'product', 'one_buy_status',
+        "VARCHAR(10) NOT NULL DEFAULT '0'"
+    );
+
+    if (!faoxima_schema_table_exists($pdo, 'category')) {
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS category (
+                id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                remark VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin");
+        } catch (\Throwable $e) {
+            error_log('[schema] category: ' . $e->getMessage());
+        }
+    }
+
+    if (!faoxima_schema_table_exists($pdo, 'PaySetting')) {
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS PaySetting (
+                NamePay VARCHAR(191) PRIMARY KEY NOT NULL,
+                ValuePay LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+            $payDefaults = [
+                'Cartstatus' => 'oncard',
+                'CartDirect' => '@support',
+                'cardnumber' => '603700000000',
+                'namecard' => 'مدیریت',
+                'Cartstatuspv' => 'offcardpv',
+                'nowpaymentstatus' => 'offnowpayment',
+                'zarinpalstatus' => 'offzarinpal',
+                'merchant_zarinpal' => '0',
+                'statusiranpay3' => 'offiranpay3',
+                'apiiranpay' => '0',
+                'statusstar' => '0',
+                'minbalance' => '20000',
+                'maxbalance' => '1000000',
+                'minbalancecart' => '20000',
+                'maxbalancecart' => '1000000',
+                'helpcart' => '2',
+                'chashbackcart' => '0',
+            ];
+            $pSeed = $pdo->prepare("INSERT IGNORE INTO PaySetting (NamePay, ValuePay) VALUES (?, ?)");
+            foreach ($payDefaults as $k => $v) {
+                $pSeed->execute([$k, $v]);
+            }
+        } catch (\Throwable $e) {
+            error_log('[schema] PaySetting: ' . $e->getMessage());
+        }
+    }
+
+    if (!faoxima_schema_table_exists($pdo, 'nm_stock_shelves')) {
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS nm_stock_shelves (
+                id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(191) NOT NULL,
+                source_codepanel VARCHAR(100) NOT NULL,
+                stock_codepanel VARCHAR(100) NOT NULL,
+                codeproduct VARCHAR(100) NOT NULL,
+                product_name VARCHAR(255) NULL,
+                volume_gb DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                service_days INT(11) NOT NULL DEFAULT 0,
+                price BIGINT(20) NOT NULL DEFAULT 0,
+                status VARCHAR(50) NOT NULL DEFAULT 'active',
+                created_at INT(11) NULL,
+                KEY idx_source (source_codepanel),
+                KEY idx_stock (stock_codepanel),
+                KEY idx_product (codeproduct)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } catch (\Throwable $e) {
+            error_log('[schema] nm_stock_shelves: ' . $e->getMessage());
+        }
+    }
+
+    if (!faoxima_schema_table_exists($pdo, 'nm_config_stock')) {
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS nm_config_stock (
+                id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                shelf_id INT(11) UNSIGNED NOT NULL,
+                codepanel VARCHAR(100) NULL,
+                codeproduct VARCHAR(100) NULL,
+                tier VARCHAR(50) NOT NULL DEFAULT 'auto',
+                format VARCHAR(50) NOT NULL DEFAULT 'single',
+                content LONGTEXT NULL,
+                sub_link TEXT NULL,
+                status VARCHAR(50) NOT NULL DEFAULT 'active',
+                assigned_user VARCHAR(100) NOT NULL DEFAULT '',
+                assigned_invoice VARCHAR(100) NOT NULL DEFAULT '',
+                assigned_mode VARCHAR(100) NOT NULL DEFAULT '',
+                reserved_at INT(11) NULL,
+                delivered_at INT(11) NULL,
+                created_at INT(11) NULL,
+                KEY idx_shelf (shelf_id),
+                KEY idx_status (status),
+                KEY idx_assigned_user (assigned_user),
+                KEY idx_assigned_invoice (assigned_invoice)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } catch (\Throwable $e) {
+            error_log('[schema] nm_config_stock: ' . $e->getMessage());
+        }
+    }
+
     if (!faoxima_schema_table_exists($pdo, 'textbot')) {
         try {
             $pdo->exec("CREATE TABLE IF NOT EXISTS textbot (
@@ -154,6 +297,40 @@ function faoxima_schema_ready(PDO $pdo): void {
         } catch (\Throwable $e) {
             error_log('[schema] textbot: ' . $e->getMessage());
         }
+    }
+
+    // Seed default bot buttons and standard texts so bot buttons & admin panel are always fully populated
+    try {
+        $textbotDefaults = [
+            'text_sell'               => '🛍 خرید اشتراک',
+            'text_Purchased_services' => '📋 سرویس‌های من',
+            'text_extend'             => '🔄 تمدید سرویس',
+            'text_usertest'           => '🎁 اکانت تست رایگان',
+            'text_wheel_luck'         => '🎡 گردونه شانس',
+            'accountwallet'           => '💳 کیف پول و شارژ',
+            'text_Add_Balance'        => '➕ افزایش موجودی',
+            'text_Tariff_list'        => '📊 تعرفه اشتراک‌ها',
+            'text_dec_Tariff_list'    => 'تعرفه‌های اشتراک ما به شرح زیر است:',
+            'text_support'            => '☎️ پشتیبانی',
+            'text_help'               => '📚 راهنما و آموزش',
+            'text_fq'                 => '❓ سوالات متداول',
+            'text_dec_fq'             => 'سوالات متداول شما در اینجا پاسخ داده شده است.',
+            'text_affiliates'         => '👥 زیرمجموعه‌گیری',
+            'text_start'              => "سلام خوش آمدید\nبرای استفاده از امکانات ربات یکی از گزینه‌های زیر را انتخاب نمایید:",
+            'text_roll'               => "♨️ قوانین استفاده از خدمات ما\n\n1- به اطلاعیه‌های کانال دقت فرمایید.\n2- در صورت هرگونه سوال به پشتیبانی پیام دهید.",
+            'text_channel'            => '📢 کانال اطلاع‌رسانی',
+            'text_pishinvoice'        => "🧾 پیش‌فاکتور خرید سرویس\n\nبرای نهایی‌سازی سفارش روش پرداخت را انتخاب فرمایید.",
+            'textafterpay'            => "✅ پرداخت شما با موفقیت تایید شد.\nاطلاعات اشتراک برای شما ارسال گردید.",
+            'textaftertext'           => "🎁 اشتراک تست شما ایجاد شد.\nامیدواریم از کیفیت و سرعت لذت ببرید.",
+            'text_Discount'           => '🎁 کد تخفیف',
+            'carttocart'              => '💳 کارت به کارت',
+        ];
+        $tSeed = $pdo->prepare("INSERT IGNORE INTO textbot (id_text, text) VALUES (?, ?)");
+        foreach ($textbotDefaults as $k => $v) {
+            $tSeed->execute([$k, $v]);
+        }
+    } catch (\Throwable $e) {
+        error_log('[schema] textbot seed: ' . $e->getMessage());
     }
 
     if (!faoxima_schema_table_exists($pdo, 'x_ui')) {

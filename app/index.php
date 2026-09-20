@@ -30,7 +30,7 @@ $apiPath = $rootForApi === '/' ? '/api' : $rootForApi . '/api';
 
 $apiUrl = $apiPath;
 
-$brandAppVersion = trim((string)@file_get_contents(__DIR__ . '/version')) ?: '1.0.5';
+$brandAppVersion = trim((string)@file_get_contents(__DIR__ . '/version')) ?: '1.0.6';
 
 
 const FX_DEFAULT_BRAND_NAME = 'zorvex';

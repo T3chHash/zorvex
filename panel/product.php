@@ -10,6 +10,10 @@ require_once __DIR__ . '/lib/search_filter.php';
 require_once __DIR__ . '/lib/compact_badges.php';
 require_once __DIR__ . '/lib/csrf.php';
 require_once __DIR__ . '/../function.php';
+require_once __DIR__ . '/lib/schema.php';
+if (function_exists('faoxima_schema_ready')) {
+    faoxima_schema_ready($pdo);
+}
 if (!function_exists('xui_fail2ban_status') && is_file(__DIR__ . '/../x-ui_single.php')) {
     require_once __DIR__ . '/../x-ui_single.php';
 }

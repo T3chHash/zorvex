@@ -19,7 +19,13 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../function.php';
 require_once __DIR__ . '/lib/icons.php';
 require_once __DIR__ . '/lib/csrf.php';
-require_once __DIR__ . '/../re/rx/function/database_helpers_1.php';
+require_once __DIR__ . '/lib/schema.php';
+if (function_exists('faoxima_schema_ready')) {
+    faoxima_schema_ready($pdo);
+}
+if (is_file(__DIR__ . '/../re/rx/function/database_helpers_1.php')) {
+    require_once __DIR__ . '/../re/rx/function/database_helpers_1.php';
+}
 
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS textbot (

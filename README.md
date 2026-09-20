@@ -15,7 +15,7 @@
 ---
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3-777bb4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
-[![Release](https://img.shields.io/badge/Release-v1.0.5-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
+[![Release](https://img.shields.io/badge/Release-v1.0.6-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
 [![Telegram Mini App](https://img.shields.io/badge/Telegram-Mini%20App%20Ready-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://telegram.org)
 [![Supported OS](https://img.shields.io/badge/Ubuntu-20.04%20%7C%2022.04%20%7C%2024.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![License](https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge)](LICENSE)
@@ -40,19 +40,28 @@
 ---
 
 <a name="-معرفی-پلتفرم-زوروکس-پرو"></a>
-## 💎 معرفی پلتفرم زوروکس پرو (نسخه پایدار 1.0.5)
+## 💎 معرفی پلتفرم زوروکس پرو (نسخه پایدار 1.0.6)
 
 **پلتفرم زوروکس (Zorvex Pro)** نسل نوینی از سیستم‌های مدیریت، فروش و مانیتورینگ سرویس‌های وی‌پی‌ان بر بستر پیام‌رسان تلگرام است. این پلتفرم با ترکیب رابط کاربری مدرن نئونی، مینی‌اپلیکیشن مستقل تک‌صفحه‌ای (SPA) و پنل مدیریتی غنی، تمامی نیازهای یک سرور و ارائه‌دهنده سرویس اینترنت آزاد را پوشش می‌دهد.
 
-### ✨ امکانات و بهبودهای متمایز نسخه 1.0.5:
-1. **رفع کامل خطاهای Fatal و ارتقای صفحه «متن‌های ربات» (`textbot.php`):**
-   - رفع خطای بحرانی ۵۰۰ در زمان ذخیره، افزودن و حذف متن‌ها با اتصال به فایل توابع هسته و محافظت توابع کش.
-   - ایجاد خودکار جدول `textbot` در صورت عدم وجود در دیتابیس سرور.
-   - بارگذاری و نمایش خودکار تمامی کلیدها و متن‌های پیش‌فرض فارسی در تب‌های دسته‌بندی‌شده (استارت، خرید، تمدید، پشتیبانی، راهنما، کیف پول و خطاها) حتی در صورت خالی بودن دیتابیس.
+### ✨ امکانات و بهبودهای متمایز نسخه 1.0.6:
+1. **اصلاح اساسی و فعال‌سازی «انبار شبکه ملی» (`stock.php` & `nm_stock.php`):**
+   - رفع خطای Fatal ۵۰۰ ناشی از فراخوانی فایل ناموجود موتور انبار شبکه ملی.
+   - ایجاد کامل موتور مستقل انبار شبکه ملی (`re/rx/function/nm_stock.php`) همراه با توابع رزرو هوشمند، تحویل، برگشت و بررسی موجودی.
+   - ایجاد و مایگریشن خودکار جداول `nm_stock_shelves` و `nm_config_stock` در صورت عدم وجود در دیتابیس به صورت ۱۰۰٪ تضمینی.
 
-2. **رفع خطای Crash و Redeclare در تنظیمات کانفیگ X-UI (`seeting_x_ui.php`):**
-   - حذف تعریف مجدد تابع `update()` که باعث بروز Fatal error: Cannot redeclare update() و عدم باز شدن صفحه می‌شد.
-   - اضافه شدن گارد `function_exists` در توابع سراسری هسته.
+2. **رفع قطعی و خطاهای «درگاه‌ها و امور مالی» (`finance.php`):**
+   - حذف نیازمندی به فایل‌های ناموجود و پیشگیری از خطای داخلی سرور در باز کردن یا ذخیره تنظیمات مالی.
+   - ایجاد و مقداردهی اولیه خودکار جدول `PaySetting` و رفع ارورهای ذخیره‌سازی درگاه‌های کارت‌به‌کارت، زرین‌پال، NowPayments و کریپتو.
+
+3. **همگام‌سازی کامل «متن‌های ربات» و «دکمه‌های بات» (`textbot.php` & `keyboard.php`):**
+   - بارگذاری و تزریق کلیه عنوان‌های فارسی دکمه‌های اصلی ربات (خرید اشتراک، کیف پول، سرویس‌های من، تمدید، اکانت تست، گردونه شانس و...) در جدول `textbot` و ادیتور کیبورد.
+   - رفع باگ خالی بودن لیست دکمه‌ها در پنجره ویرایش دکمه و اضافه شدن گزینه «متن دلخواه (دکمه سفارشی)».
+   - حل مشکل نمایش کدهای فنی خام به‌جای نام‌های فارسی در کیبورد.
+
+4. **اصلاح و ارتقای بخش «محصولات» (`product.php` & `productedit.php`):**
+   - ایجاد خودکار ستون‌های ساختاری جدول محصول اعم از `position`, `ip_limit`, `hwid_limit`, `symbolic_limit_enabled`, `symbolic_limit_users`, `category`, `hide_panel`.
+   - ایجاد خودکار جدول دسته‌بندی‌ها (`category`) جهت جلوگیری از ارور دیتابیس هنگام افزودن یا ویرایش محصول.
 
 3. **ایمن‌سازی ساختار دیتابیس در تمام صفحات پنل (Schema Self-Healing):**
    - ایجاد و تزریق خودکار تمام ستون‌های جدول `setting` شامل ستون‌های تنظیمات تاپیک و لینک اشتراک (`receipt_topic_reporting`, `subscription_link_button`)، کانال اعتماد (`PublicLog_*`) و بنرها (`banner_*`).

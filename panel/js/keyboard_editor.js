@@ -102,10 +102,19 @@
             var grpA = document.createElement('optgroup');
             grpA.label = 'دکمه‌های اصلی ربات';
             primaryKeys.forEach(function (k) {
-                if (textbotMap[k]) grpA.appendChild(makeOption(k, textbotMap[k]));
+                var label = textbotMap[k] || k;
+                grpA.appendChild(makeOption(k, label));
             });
             if (grpA.children.length) modalSelectEl.appendChild(grpA);
         }
+
+        var grpB = document.createElement('optgroup');
+        grpB.label = 'سفارشی';
+        var optCustom = document.createElement('option');
+        optCustom.value = CUSTOM_OPT;
+        optCustom.textContent = '✏️ متن دلخواه (دکمه سفارشی)...';
+        grpB.appendChild(optCustom);
+        modalSelectEl.appendChild(grpB);
     }
     function makeOption(key, label) {
         var o = document.createElement('option');
@@ -389,13 +398,16 @@
 
 
         var key = current.text || '';
-        if (key && Object.prototype.hasOwnProperty.call(textbotMap, key)) {
+        if (key && (Object.prototype.hasOwnProperty.call(textbotMap, key) || primaryKeys.indexOf(key) !== -1)) {
             modalSelectEl.value = key;
             modalCustomWrapEl.style.display = 'none';
             modalCustomTextEl.value = '';
+        } else if (key) {
+            modalSelectEl.value = CUSTOM_OPT;
+            modalCustomWrapEl.style.display = 'block';
+            modalCustomTextEl.value = key;
         } else {
-
-            if (primaryKeys.length > 0 && textbotMap[primaryKeys[0]]) {
+            if (primaryKeys.length > 0) {
                 modalSelectEl.value = primaryKeys[0];
             }
             modalCustomWrapEl.style.display = 'none';
@@ -424,6 +436,14 @@
         if (!editing) return;
         var selVal = modalSelectEl.value;
         var text = selVal;
+        if (selVal === CUSTOM_OPT) {
+            text = modalCustomTextEl.value.trim();
+            if (!text) {
+                alert('لطفاً متن دکمه سفارشی را وارد کنید.');
+                modalCustomTextEl.focus();
+                return;
+            }
+        }
 
         var style = 'default';
         modalColorEls.forEach(function (r) { if (r.checked) style = r.value; });

@@ -18,7 +18,20 @@ header('Expires: 0');
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../function.php';
 require_once __DIR__ . '/lib/icons.php';
-require_once __DIR__ . '/../re/rx/function/database_helpers_1.php';
+require_once __DIR__ . '/lib/schema.php';
+if (function_exists('faoxima_schema_ready')) {
+    faoxima_schema_ready($pdo);
+}
+if (is_file(__DIR__ . '/../re/rx/function/database_helpers_1.php')) {
+    require_once __DIR__ . '/../re/rx/function/database_helpers_1.php';
+}
+
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS PaySetting (
+        NamePay VARCHAR(191) PRIMARY KEY NOT NULL,
+        ValuePay LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} catch (\Throwable $e) {}
 
 $query = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
 $query->execute([$_SESSION["user"] ?? "", $_SESSION["user"] ?? ""]);

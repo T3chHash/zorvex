@@ -16,7 +16,65 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/lib/icons.php';
 require_once __DIR__ . '/lib/remaining.php';
 require_once __DIR__ . '/lib/item_parser.php';
-require_once __DIR__ . '/../re/rx/function/nm_stock.php';
+require_once __DIR__ . '/lib/schema.php';
+if (function_exists('faoxima_schema_ready')) {
+    faoxima_schema_ready($pdo);
+}
+if (is_file(__DIR__ . '/../re/rx/function/nm_stock.php')) {
+    require_once __DIR__ . '/../re/rx/function/nm_stock.php';
+}
+
+if (!function_exists('nmPanelNationalEnabled')) {
+    function nmPanelNationalEnabled($panel): bool {
+        if (!is_array($panel)) return false;
+        $st = (string)($panel['national_net_status'] ?? '');
+        if ($st === '1' || $st === 'active' || $st === 'on' || $st === 'on_national_net') return true;
+        $type = strtolower((string)($panel['type'] ?? ''));
+        if (strpos($type, 'national') !== false || strpos($type, 'stock') !== false) return true;
+        return false;
+    }
+}
+
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS nm_stock_shelves (
+        id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(191) NOT NULL,
+        source_codepanel VARCHAR(100) NOT NULL,
+        stock_codepanel VARCHAR(100) NOT NULL,
+        codeproduct VARCHAR(100) NOT NULL,
+        product_name VARCHAR(255) NULL,
+        volume_gb DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        service_days INT(11) NOT NULL DEFAULT 0,
+        price BIGINT(20) NOT NULL DEFAULT 0,
+        status VARCHAR(50) NOT NULL DEFAULT 'active',
+        created_at INT(11) NULL,
+        KEY idx_source (source_codepanel),
+        KEY idx_stock (stock_codepanel),
+        KEY idx_product (codeproduct)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS nm_config_stock (
+        id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        shelf_id INT(11) UNSIGNED NOT NULL,
+        codepanel VARCHAR(100) NULL,
+        codeproduct VARCHAR(100) NULL,
+        tier VARCHAR(50) NOT NULL DEFAULT 'auto',
+        format VARCHAR(50) NOT NULL DEFAULT 'single',
+        content LONGTEXT NULL,
+        sub_link TEXT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'active',
+        assigned_user VARCHAR(100) NOT NULL DEFAULT '',
+        assigned_invoice VARCHAR(100) NOT NULL DEFAULT '',
+        assigned_mode VARCHAR(100) NOT NULL DEFAULT '',
+        reserved_at INT(11) NULL,
+        delivered_at INT(11) NULL,
+        created_at INT(11) NULL,
+        KEY idx_shelf (shelf_id),
+        KEY idx_status (status),
+        KEY idx_assigned_user (assigned_user),
+        KEY idx_assigned_invoice (assigned_invoice)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} catch (\Throwable $e) {}
 
 $query = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
 $query->execute([$_SESSION["user"] ?? "", $_SESSION["user"] ?? ""]);

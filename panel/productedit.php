@@ -5,6 +5,10 @@ session_start();
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/lib/icons.php';
 require_once __DIR__ . '/../function.php';
+require_once __DIR__ . '/lib/schema.php';
+if (function_exists('faoxima_schema_ready')) {
+    faoxima_schema_ready($pdo);
+}
 
 $query = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
 $query->execute([$_SESSION["user"] ?? "", $_SESSION["user"] ?? ""]);

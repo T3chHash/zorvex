@@ -20,6 +20,10 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../jdf.php';
 require_once __DIR__ . '/../function.php';
 require_once __DIR__ . '/lib/icons.php';
+require_once __DIR__ . '/lib/schema.php';
+if (function_exists('faoxima_schema_ready')) {
+    faoxima_schema_ready($pdo);
+}
 
 
 $query = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
@@ -88,7 +92,25 @@ if (is_array($settingRow) && !empty($settingRow['keyboardmain'])) {
 }
 
 
-$textbotMap = [];
+$defaultBotButtons = [
+    'text_sell'               => '🛍 خرید اشتراک',
+    'text_Purchased_services' => '📋 سرویس‌های من',
+    'text_extend'             => '🔄 تمدید سرویس',
+    'text_usertest'           => '🎁 اکانت تست رایگان',
+    'text_wheel_luck'         => '🎡 گردونه شانس',
+    'accountwallet'           => '💳 کیف پول و شارژ',
+    'text_Add_Balance'        => '➕ افزایش موجودی',
+    'text_affiliates'         => '👥 زیرمجموعه‌گیری',
+    'text_Tariff_list'        => '📊 تعرفه اشتراک‌ها',
+    'text_dec_Tariff_list'    => 'تعرفه‌ها',
+    'text_support'            => '☎️ پشتیبانی',
+    'text_help'               => '📚 راهنما و آموزش',
+    'text_fq'                 => '❓ سوالات متداول',
+    'text_start'              => 'شروع ربات',
+    'text_roll'               => 'قوانین و مقررات',
+    'text_channel'            => 'کانال اطلاع‌رسانی',
+];
+$textbotMap = $defaultBotButtons;
 try {
     $textbotRows = select("textbot", "*", null, null, "fetchAll");
     if (is_array($textbotRows)) {
@@ -99,16 +121,26 @@ try {
         }
     }
 } catch (\Throwable $e) {
-
     error_log('[panel/keyboard] textbot load failed: ' . $e->getMessage());
 }
 
 
 $primaryKeys = [
-    'text_sell', 'text_extend', 'text_usertest', 'text_wheel_luck',
-    'text_Purchased_services', 'accountwallet',
-    'text_affiliates', 'text_Tariff_list',
-    'text_support', 'text_help',
+    'text_sell',
+    'text_Purchased_services',
+    'text_extend',
+    'text_usertest',
+    'text_wheel_luck',
+    'accountwallet',
+    'text_Add_Balance',
+    'text_affiliates',
+    'text_Tariff_list',
+    'text_support',
+    'text_help',
+    'text_fq',
+    'text_start',
+    'text_roll',
+    'text_channel',
 ];
 ?>
 <!DOCTYPE html>
