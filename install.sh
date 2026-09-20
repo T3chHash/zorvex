@@ -755,16 +755,29 @@ _kv()  { printf "    ${C_DIM}%-11s${CR}${C_BORDER}:${CR} %b${CR}\n" "$1" "$2"; }
 
 # Read the installed version from the source 'version' file
 get_installed_version() {
-    if [ -f "$BOT_DIR_DEFAULT/version" ]; then
-        tr -d ' \t\r\n' < "$BOT_DIR_DEFAULT/version"
-    else
-        echo ""
-    fi
+    for vfile in "$BOT_DIR_DEFAULT/version" "$BOT_DIR/version" "/var/www/zorvex/version" "/var/www/html/zorvex/version" "/var/www/html/zorvexbotconfig/version" "$(pwd)/version"; do
+        if [ -f "$vfile" ]; then
+            tr -d ' \t\r\n' < "$vfile"
+            return
+        fi
+    done
+    echo ""
 }
 
-# Get latest version (newest git tag) from GitHub, cached for 1 hour
+# Find active config file in standard directories
+get_active_config_file() {
+    for c in "$CONFIG_FILE_DEFAULT" "/var/www/zorvex/config.php" "/var/www/html/zorvex/config.php" "/var/www/html/zorvexbotconfig/config.php" "$(pwd)/config.php"; do
+        if [ -f "$c" ]; then
+            echo "$c"
+            return
+        fi
+    done
+    echo "$CONFIG_FILE_DEFAULT"
+}
+
+# Get latest version (newest git tag) from GitHub, cached for 60 seconds
 get_latest_version() {
-    if [ -f "$LATEST_CACHE" ] && [ $(( $(date +%s) - $(stat -c %Y "$LATEST_CACHE" 2>/dev/null || echo 0) )) -lt 3600 ]; then
+    if [ -f "$LATEST_CACHE" ] && [ $(( $(date +%s) - $(stat -c %Y "$LATEST_CACHE" 2>/dev/null || echo 0) )) -lt 60 ]; then
         cat "$LATEST_CACHE"
         return
     fi
@@ -896,7 +909,7 @@ version_section() {
     local inst latest
     inst=$(get_installed_version)
     latest=$(get_latest_version)
-    _sec "Version"
+    _sec "Version Status"
     if [ -n "$inst" ]; then
         _kv "Installed" "$(_dot ok) ${C_OK}${inst}${CR}"
     else
@@ -906,7 +919,7 @@ version_section() {
         if [ -n "$inst" ] && [ "$inst" = "$latest" ]; then
             _kv "Latest" "$(_dot ok) ${C_OK}${latest}${CR} ${C_DIM}(up to date)${CR}"
         elif [ -n "$inst" ]; then
-            _kv "Latest" "$(_dot warn) ${C_WARN}${latest}${CR} ${C_WARN}(update available!)${CR}"
+            _kv "Latest" "$(_dot warn) \033[1;37;41m ${latest} \033[0m \033[1;33m[UPDATE AVAILABLE!]\033[0m"
         else
             _kv "Latest" "$(_dot warn) ${C_DIM}${latest}${CR}"
         fi
@@ -920,12 +933,13 @@ version_section() {
 bot_section() {
     SSL_DOMAIN=""
     _sec "Bot Status"
-    if [ ! -f "$CONFIG_FILE_DEFAULT" ]; then
+    local cfg; cfg=$(get_active_config_file)
+    if [ ! -f "$cfg" ]; then
         _kv "State" "$(_dot bad) ${C_BAD}not installed${CR}"
         return
     fi
     _kv "State" "$(_dot ok) ${C_OK}installed${CR}"
-    SSL_DOMAIN=$(grep '^\$domainhosts' "$CONFIG_FILE_DEFAULT" | cut -d"'" -f2 | cut -d'/' -f1)
+    SSL_DOMAIN=$(grep '^\$domainhosts' "$cfg" | cut -d"'" -f2 | cut -d'/' -f1)
     if [ -n "$SSL_DOMAIN" ] && [ -f "/etc/letsencrypt/live/$SSL_DOMAIN/cert.pem" ]; then
         local expiry days
         expiry=$(openssl x509 -enddate -noout -in "/etc/letsencrypt/live/$SSL_DOMAIN/cert.pem" 2>/dev/null | cut -d= -f2)
@@ -950,12 +964,13 @@ bot_section() {
 # Prints webhook URL / pending count, and surfaces any error message.
 webhook_section() {
     _sec "Webhook"
-    if [ ! -f "$CONFIG_FILE_DEFAULT" ]; then
+    local cfg; cfg=$(get_active_config_file)
+    if [ ! -f "$cfg" ]; then
         _kv "Status" "$(_dot warn) ${C_DIM}n/a (bot not installed)${CR}"
         return
     fi
     local token info ok url pending err errdate apierr when
-    token=$(grep '^\$APIKEY' "$CONFIG_FILE_DEFAULT" | cut -d"'" -f2)
+    token=$(grep '^\$APIKEY' "$cfg" | cut -d"'" -f2)
     if [ -z "$token" ]; then
         _kv "Status" "$(_dot bad) ${C_BAD}token not found in config.php${CR}"
         return
@@ -1311,19 +1326,29 @@ function import_bot() {
 
 function show_menu() {
     show_logo
-    _sec "Menu"
-    _mi "1" "Install Zorvex"
-    _mi "2" "Update Zorvex"
-    _mi "3" "Remove Zorvex"
-    _mi "4" "Migrate: Free -> Pro (Beta)"
-    _mi "5" "Renew SSL certificate"
-    _mi "6" "Backup Database"
-    _mi "7" "Import Database  ${C_WARN}(Beta)${CR}"
-    _mi "8" "Help & Parameters"
-    _mi "9" "Exit"
+    local inst latest update_badge=""
+    inst=$(get_installed_version)
+    latest=$(get_latest_version)
+    if [ -n "$inst" ] && [ -n "$latest" ] && [ "$inst" != "$latest" ]; then
+        echo ""
+        echo -e "  \033[1;43;30m 🔔 بروزرسانی جدید پلتفرم Zorvex موجود است: \033[0m \033[1;33mنسخه $latest منتشر شد! (نسخه شما: $inst)\033[0m"
+        echo -e "  \033[1;36m👉 جهت بروزرسانی خودکار به نسخه $latest، گزینه 2 را وارد کنید.\033[0m"
+        echo ""
+        update_badge="  \033[1;33m[● آپدیت به $latest موجود است]\033[0m"
+    fi
+    _sec "منوی مدیریت و عملیات"
+    _mi "1" "نصب پلتفرم Zorvex"
+    _mi "2" "بروزرسانی Zorvex${update_badge}"
+    _mi "3" "حذف کامل Zorvex"
+    _mi "4" "مهاجرت: رایگان -> حرفه‌ای (Beta)"
+    _mi "5" "تمدید یا صدور گواهی SSL"
+    _mi "6" "پشتیبان‌گیری از دیتابیس (Backup)"
+    _mi "7" "بازیابی دیتابیس (Restore)  ${C_WARN}(Beta)${CR}"
+    _mi "8" "راهنما و پارامترها"
+    _mi "9" "خروج"
     _rule
     echo ""
-    printf  "  ${C_PROMPT}❯${CR} Select an option ${C_DIM}[1-9]${CR}: "
+    printf  "  ${C_PROMPT}❯${CR} لطفاً یک گزینه را انتخاب کنید ${C_DIM}[1-9]${CR}: "
     read -r option
     case $option in
         1) install_bot ;;
@@ -1334,8 +1359,8 @@ function show_menu() {
         6) backup_bot ;;
         7) import_bot ;;
         8) show_help_screen ;;
-        9) echo -e "\n${C_OK}Exiting...${CR}"; exit 0 ;;
-        *) echo -e "\n${C_BAD}Invalid option. Please try again.${CR}"; sleep 1; show_menu ;;
+        9) echo -e "\n${C_OK}خروج از اسکریپت...${CR}"; exit 0 ;;
+        *) echo -e "\n${C_BAD}گزینه نامعتبر است. لطفاً مجدداً تلاش کنید.${CR}"; sleep 1; show_menu ;;
     esac
 }
 
@@ -2310,6 +2335,11 @@ function update_bot() {
     clear
     banner
     BOT_DIR="/var/www/html/zorvexbotconfig"
+    if [ ! -d "$BOT_DIR" ] && [ -d "/var/www/zorvex" ]; then
+        BOT_DIR="/var/www/zorvex"
+    elif [ ! -d "$BOT_DIR" ] && [ -d "/var/www/html/zorvex" ]; then
+        BOT_DIR="/var/www/html/zorvex"
+    fi
     if [ ! -d "$BOT_DIR" ]; then
         _sec "Update"
         printf "    ${C_BAD}●${CR} ${C_BAD}Zorvex is not installed. Install it first.${CR}\n"
@@ -2505,6 +2535,7 @@ EOF
             || echo -e "\e[93mWarning: vpnbot webhook update failed.\033[0m"
     fi
     rm -rf "$TEMP_DIR"
+    rm -f "$LATEST_CACHE"
     echo -e "\n\e[92mZorvex Bot updated to latest version successfully!\033[0m"
     if [ -f "/root/install.sh" ]; then
         sudo chmod +x /root/install.sh
