@@ -1367,20 +1367,24 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
 function KeyboardCategory($location, $agent, $backuser = "backuser")
 {
     global $pdo, $textbotlang;
-    $stmts = $pdo->prepare("SELECT category, COUNT(*) AS c FROM product WHERE (Location = :location OR Location = '/all') AND agent = :agent GROUP BY category");
-    $stmts->bindParam(':location', $location, PDO::PARAM_STR);
-    $stmts->bindParam(':agent', $agent);
+    $stmts = $pdo->prepare("SELECT category FROM product WHERE (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers') OR FIND_IN_SET(:agent, agent) > 0)");
+    $stmts->bindValue(':location', (string)$location, PDO::PARAM_STR);
+    $stmts->bindValue(':agent', (string)$agent, PDO::PARAM_STR);
     $stmts->execute();
-    $categoryCounts = [];
-    foreach ($stmts->fetchAll(PDO::FETCH_ASSOC) as $catRow) {
-        $categoryKey = mb_strtolower(trim((string) $catRow['category']), 'UTF-8');
-        $categoryCounts[$categoryKey] = ($categoryCounts[$categoryKey] ?? 0) + (int) $catRow['c'];
+    $activeCategories = [];
+    foreach ($stmts->fetchAll(PDO::FETCH_COLUMN) as $catRaw) {
+        $parts = explode(',', (string)$catRaw);
+        foreach ($parts as $p) {
+            $cleaned = mb_strtolower(trim($p), 'UTF-8');
+            if ($cleaned !== '') $activeCategories[$cleaned] = true;
+        }
     }
-    $stmt = $pdo->prepare("SELECT * FROM category");
+    $stmt = $pdo->prepare("SELECT * FROM category ORDER BY id ASC");
     $stmt->execute();
-    $list_category = ['inline_keyboard' => [],];
+    $list_category = ['inline_keyboard' => []];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        if (empty($categoryCounts[mb_strtolower(trim((string) $row['remark']), 'UTF-8')]))
+        $remarkLower = mb_strtolower(trim((string)$row['remark']), 'UTF-8');
+        if (empty($activeCategories[$remarkLower]))
             continue;
         $list_category['inline_keyboard'][] = [['text' => $row['remark'], 'callback_data' => "categorynames_" . $row['id']]];
     }
@@ -1393,9 +1397,9 @@ function KeyboardCategory($location, $agent, $backuser = "backuser")
 function keyboardTimeCategory($name_panel, $agent, $callback_data = "producttime_", $callback_data_back = "backuser", $statuscustomvolume = false, $statusbtnextend = false)
 {
     global $pdo, $textbotlang;
-    $stmt = $pdo->prepare("SELECT (Service_time) FROM product WHERE (Location = :name_panel OR Location = '/all') AND  agent = :agent");
-    $stmt->bindValue(':name_panel', $name_panel, PDO::PARAM_STR);
-    $stmt->bindValue(':agent', $agent, PDO::PARAM_STR);
+    $stmt = $pdo->prepare("SELECT (Service_time) FROM product WHERE (Location = :name_panel OR Location = '/all' OR FIND_IN_SET(:name_panel, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers') OR FIND_IN_SET(:agent, agent) > 0)");
+    $stmt->bindValue(':name_panel', (string)$name_panel, PDO::PARAM_STR);
+    $stmt->bindValue(':agent', (string)$agent, PDO::PARAM_STR);
     $stmt->execute();
     $montheproduct = array_flip(array_flip($stmt->fetchAll(PDO::FETCH_COLUMN)));
     $monthkeyboard = ['inline_keyboard' => []];

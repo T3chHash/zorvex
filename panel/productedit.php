@@ -71,7 +71,7 @@ if ($product == false) {
         }
 
         $agent = htmlspecialchars($_POST['agent'], ENT_QUOTES, 'UTF-8');
-        if (!in_array($agent, ['f', 'n', 'n2'])) {
+        if (!in_array($agent, ['f', 'n', 'n2', 'all'])) {
             $statusmessage = true; $infomesssage = "گروه کاربری نامعتبر است";
         } elseif ($product['agent'] != $agent) {
             update("product", "agent", $agent, "id", $id_product);
@@ -221,9 +221,10 @@ if ($product == false) {
                         <div class="form-group">
                             <label class="form-label">نوع کاربر</label>
                             <select name="agent" class="form-control">
-                                <option value="f"  <?php if ($product['agent']=='f')  echo 'selected'; ?>>کاربر عادی</option>
-                                <option value="n"  <?php if ($product['agent']=='n')  echo 'selected'; ?>>نماینده معمولی</option>
-                                <option value="n2" <?php if ($product['agent']=='n2') echo 'selected'; ?>>نماینده پیشرفته</option>
+                                <option value="f"   <?php if ($product['agent']=='f')   echo 'selected'; ?>>کاربر عادی</option>
+                                <option value="n"   <?php if ($product['agent']=='n')   echo 'selected'; ?>>نماینده معمولی</option>
+                                <option value="n2"  <?php if ($product['agent']=='n2')  echo 'selected'; ?>>نماینده پیشرفته</option>
+                                <option value="all" <?php if ($product['agent']=='all' || $product['agent']=='allusers') echo 'selected'; ?>>همه کاربران (عمومی)</option>
                             </select>
                         </div>
                     </div>

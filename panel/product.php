@@ -280,6 +280,7 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                                 <th>لوکیشن</th>
                                 <th>گروه کاربری</th>
                                 <th>دسته‌بندی</th>
+                                <th>وضعیت در ربات</th>
                                 <th>عملیات</th>
                             </tr>
                         </thead>
@@ -290,6 +291,7 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                             $agent_type = 'عادی'; $agent_badge = 'badge-gray';
                             if ($list['agent'] == 'n')  { $agent_type = 'نماینده';      $agent_badge = 'badge-purple';  }
                             if ($list['agent'] == 'n2') { $agent_type = 'نماینده ویژه';  $agent_badge = 'badge-warning'; }
+                            if ($list['agent'] == 'all' || $list['agent'] == 'allusers') { $agent_type = 'همه کاربران'; $agent_badge = 'badge-success'; }
                         ?>
                             <tr data-detail-row data-detail-title="<?php echo htmlspecialchars($list['name_product'], ENT_QUOTES, 'UTF-8'); ?>">
                                 <td><label class="fx-check-row"><input type="checkbox" name="ids[]" value="<?php echo $list['id']; ?>"></label></td>
@@ -315,6 +317,7 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                                         echo faoxima_render_compact_badges($categoryBadgesHtml);
                                     ?>
                                 </td>
+                                <td data-label="وضعیت در ربات"><span class="badge badge-success">● فعال در ربات</span></td>
                                 <td data-label="عملیات" class="cell-actions">
                                     <div style="display:inline-flex; gap:6px;">
                                         <a href="productedit.php?id=<?php echo $list['id']; ?>" class="btn btn-sm btn-soft-info" title="ویرایش">
@@ -428,7 +431,8 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                 <div class="form-group">
                     <label class="form-label">نوع کاربر</label>
                     <select name="agent_product" class="form-control" required>
-                        <option value="f">کاربر عادی</option>
+                        <option value="all">همه کاربران (عمومی)</option>
+                        <option value="f" selected>کاربر عادی</option>
                         <option value="n">نماینده</option>
                         <option value="n2">نماینده پیشرفته</option>
                     </select>
@@ -543,6 +547,7 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                 <div class="form-group">
                     <label class="form-label">نوع کاربر</label>
                     <select name="agent_product" id="clone_agent" class="form-control" required>
+                        <option value="all">همه کاربران (عمومی)</option>
                         <option value="f">کاربر عادی</option>
                         <option value="n">نماینده</option>
                         <option value="n2">نماینده پیشرفته</option>

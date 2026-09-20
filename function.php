@@ -2125,37 +2125,108 @@ function languagechange($path_dir = null, string $lang = 'fa')
 }
 function bottext_apply_overrides(array &$base, $lang)
 {
+    global $pdo;
     $overrideFile = __DIR__ . '/lang/override/' . $lang . '.php';
     if (is_file($overrideFile) && is_array($overrideTexts = include $overrideFile))
         $base = array_replace_recursive($base, $overrideTexts);
     customEmojiLabels([]);
     $row = select("setting", "*", null, null, "select");
     $raw = is_array($row) ? ($row['text_edit'] ?? null) : null;
-    if (!is_string($raw) || $raw === '')
-        return;
-    $map = json_decode($raw, true);
-    if (!is_array($map))
-        return;
-    $langMap = $map[$lang] ?? null;
-    if (!is_array($langMap))
-        return;
-    $emojiLabels = [];
-    foreach ($langMap as $group => $pairs) {
-        if (!is_array($pairs))
-            continue;
-        if (!isset($base[$group]) || !is_array($base[$group]))
-            $base[$group] = [];
-        foreach ($pairs as $k => $v) {
-            if (!is_string($v))
-                continue;
-            $base[$group][$k] = $v;
-            foreach ([customEmojiLabelText($v), stripCustomEmojiTags($v)] as $plain) {
-                if (is_string($plain) && $plain !== $v && $plain !== '')
-                    $emojiLabels[$plain] = $v;
+    if (is_string($raw) && $raw !== '') {
+        $map = json_decode($raw, true);
+        if (is_array($map) && isset($map[$lang]) && is_array($map[$lang])) {
+            $emojiLabels = [];
+            foreach ($map[$lang] as $group => $pairs) {
+                if (!is_array($pairs))
+                    continue;
+                if (!isset($base[$group]) || !is_array($base[$group]))
+                    $base[$group] = [];
+                foreach ($pairs as $k => $v) {
+                    if (!is_string($v))
+                        continue;
+                    $base[$group][$k] = $v;
+                    foreach ([customEmojiLabelText($v), stripCustomEmojiTags($v)] as $plain) {
+                        if (is_string($plain) && $plain !== $v && $plain !== '')
+                            $emojiLabels[$plain] = $v;
+                    }
+                }
+            }
+            if (!empty($emojiLabels)) {
+                customEmojiLabels($emojiLabels);
             }
         }
     }
-    customEmojiLabels($emojiLabels);
+
+    // Direct synchronization with textbot table (Admin Panel)
+    if (isset($pdo) && $pdo instanceof PDO) {
+        try {
+            $stmt = $pdo->query("SELECT id_text, text FROM textbot");
+            if ($stmt) {
+                $classicMap = [
+                    'text_start'              => ['users', 'text_start'],
+                    'text_roll'               => ['textbot', 'rules'],
+                    'text_sell'               => ['textbot', 'sell'],
+                    'text_Purchased_services' => ['textbot', 'purchasedServices'],
+                    'text_extend'             => ['textbot', 'extend'],
+                    'text_usertest'           => ['textbot', 'userTest'],
+                    'text_wheel_luck'         => ['textbot', 'wheelLuck'],
+                    'accountwallet'           => ['textbot', 'accountWallet'],
+                    'text_Add_Balance'        => ['textbot', 'addBalance'],
+                    'text_Tariff_list'        => ['textbot', 'tariffList'],
+                    'text_dec_Tariff_list'    => ['textbot', 'tariffListDesc'],
+                    'text_fq'                 => ['textbot', 'faq'],
+                    'text_dec_fq'             => ['textbot', 'faqDesc'],
+                    'text_help'               => ['textbot', 'help'],
+                    'text_support'            => ['textbot', 'support'],
+                    'text_channel'            => ['textbot', 'channel'],
+                    'text_affiliates'         => ['textbot', 'affiliates'],
+                    'text_pishinvoice'        => ['textbot', 'preInvoice'],
+                    'textafterpay'            => ['textbot', 'afterPay'],
+                    'textaftertext'           => ['textbot', 'afterText'],
+                    'text_Discount'           => ['textbot', 'discount'],
+                    'carttocart'              => ['textbot', 'cartToCart'],
+                ];
+
+                while ($tRow = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $key = (string)($tRow['id_text'] ?? '');
+                    $val = (string)($tRow['text'] ?? '');
+                    if ($key === '' || $val === '') continue;
+
+                    if (str_starts_with($key, 'jsontext.')) {
+                        $path = substr($key, 9);
+                        $parts = explode('.', $path);
+                        $cursor = &$base;
+                        foreach ($parts as $idx => $part) {
+                            if ($idx === count($parts) - 1) {
+                                $cursor[$part] = $val;
+                            } else {
+                                if (!isset($cursor[$part]) || !is_array($cursor[$part])) {
+                                    $cursor[$part] = [];
+                                }
+                                $cursor = &$cursor[$part];
+                            }
+                        }
+                        unset($cursor);
+                        continue;
+                    }
+
+                    if (isset($classicMap[$key])) {
+                        [$grp, $subk] = $classicMap[$key];
+                        if (!isset($base[$grp]) || !is_array($base[$grp])) {
+                            $base[$grp] = [];
+                        }
+                        $base[$grp][$subk] = $val;
+                    }
+
+                    if (!isset($base['textbot']) || !is_array($base['textbot'])) {
+                        $base['textbot'] = [];
+                    }
+                    $base['textbot'][$key] = $val;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+    }
 }
 function extendMethodKeys()
 {

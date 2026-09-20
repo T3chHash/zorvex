@@ -85,6 +85,18 @@ $query->bindValue(':perPage', $pg['perPage'], PDO::PARAM_INT);
 $query->bindValue(':offset', $pg['offset'], PDO::PARAM_INT);
 $query->execute();
 $categories = $query->fetchAll();
+
+$prodCountsQuery = $pdo->query("SELECT category FROM product");
+$allProdCategories = $prodCountsQuery ? $prodCountsQuery->fetchAll(PDO::FETCH_COLUMN) : [];
+$categoryProdCount = [];
+foreach ($allProdCategories as $cp) {
+    foreach (explode(',', (string)$cp) as $singleCat) {
+        $cClean = trim($singleCat);
+        if ($cClean !== '') {
+            $categoryProdCount[$cClean] = ($categoryProdCount[$cClean] ?? 0) + 1;
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -130,15 +142,27 @@ $categories = $query->fetchAll();
                                     <th><input type="checkbox" id="check-all" onclick="faoximaToggleAll(this)"></th>
                                     <th>شناسه</th>
                                     <th>نام دسته‌بندی</th>
+                                    <th>تعداد محصولات</th>
+                                    <th>وضعیت در ربات</th>
                                     <th>عملیات</th>
                                 </tr>
                             </thead>
                             <tbody>
-                            <?php foreach ($categories as $cat): ?>
+                            <?php foreach ($categories as $cat):
+                                $prodCount = $categoryProdCount[$cat['remark']] ?? 0;
+                            ?>
                                 <tr data-detail-row data-detail-title="<?php echo htmlspecialchars($cat['remark'], ENT_QUOTES, 'UTF-8'); ?>">
                                     <td><label class="fx-check-row"><input type="checkbox" name="ids[]" value="<?php echo $cat['id']; ?>"></label></td>
                                     <td data-label="شناسه" data-summary="1"><?php echo $cat['id']; ?></td>
-                                    <td data-label="نام دسته‌بندی" data-summary="1"><?php echo htmlspecialchars($cat['remark'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td data-label="نام دسته‌بندی" data-summary="1"><span style="font-weight:600; color:var(--text-main);"><?php echo htmlspecialchars($cat['remark'], ENT_QUOTES, 'UTF-8'); ?></span></td>
+                                    <td data-label="تعداد محصولات"><span class="badge badge-cyan"><?php echo number_format($prodCount); ?> محصول</span></td>
+                                    <td data-label="وضعیت در ربات">
+                                        <?php if ($prodCount > 0): ?>
+                                            <span class="badge badge-success">● فعال در ربات</span>
+                                        <?php else: ?>
+                                            <span class="badge badge-gray">بدون محصول (مخفی)</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td data-label="عملیات" class="cell-actions">
                                         <div class="cell-actions__group">
                                             <button type="button"

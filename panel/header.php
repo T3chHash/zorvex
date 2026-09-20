@@ -18,7 +18,7 @@ if (session_status() === PHP_SESSION_NONE) {
 // Panel version (read from the project root `version` file). Displayed in the
 // sidebar footer on every page. Always shown with a leading "v".
 $__panelVersionRaw = trim((string)@file_get_contents(__DIR__ . '/../version'));
-if ($__panelVersionRaw === '') $__panelVersionRaw = '1.0.3';
+if ($__panelVersionRaw === '') $__panelVersionRaw = '1.0.4';
 $__panelVersion = (stripos($__panelVersionRaw, 'v') === 0) ? $__panelVersionRaw : ('v' . $__panelVersionRaw);
 
 if (isset($_SESSION["user"])) {
