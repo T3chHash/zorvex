@@ -228,8 +228,8 @@ function self_update_script() {
 
     echo -e "\e[33mChecking for the latest script version...\033[0m"
     rm -f "$TEMP_FILE"
-    curl -fsSL --max-time 15 -o "$TEMP_FILE" "$URL" 2>/dev/null \
-        || wget -q -O "$TEMP_FILE" "$URL" 2>/dev/null
+    curl -fsSL --max-time 15 -H "Cache-Control: no-cache" -o "$TEMP_FILE" "$URL?t=$(date +%s)" 2>/dev/null \
+        || wget -q --no-cache -O "$TEMP_FILE" "$URL?t=$(date +%s)" 2>/dev/null
 
     # Normalize line endings so a CRLF download can never break bash
     [ -f "$TEMP_FILE" ] && sed -i 's/\r$//' "$TEMP_FILE"
@@ -775,21 +775,33 @@ get_active_config_file() {
     echo "$CONFIG_FILE_DEFAULT"
 }
 
-# Get latest version (newest git tag) from GitHub, cached for 60 seconds
+# Get latest version (newest git tag or raw version file) from GitHub, cached for 60 seconds
 get_latest_version() {
     if [ -f "$LATEST_CACHE" ] && [ $(( $(date +%s) - $(stat -c %Y "$LATEST_CACHE" 2>/dev/null || echo 0) )) -lt 60 ]; then
         cat "$LATEST_CACHE"
         return
     fi
-    local tags v
-    tags=$(curl -fsSL --max-time 6 "https://api.github.com/repos/${GIT_REPO}/tags" 2>/dev/null)
-    if [ -n "$tags" ]; then
-        if command -v jq >/dev/null 2>&1; then
-            v=$(echo "$tags" | jq -r '.[].name' 2>/dev/null | sort -V | tail -1)
-        else
-            v=$(echo "$tags" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)".*/\1/' | sort -V | tail -1)
+    local tags v=""
+    # 1. Fetch raw version file directly (Fast, reliable, NO GitHub API rate limit)
+    v=$(curl -fsSL --max-time 5 -H "Cache-Control: no-cache" "https://raw.githubusercontent.com/${GIT_REPO}/main/version?t=$(date +%s)" 2>/dev/null | tr -d ' \t\r\n')
+
+    # 2. If empty, try GitHub tags API
+    if [ -z "$v" ]; then
+        tags=$(curl -fsSL --max-time 6 -H "Cache-Control: no-cache" "https://api.github.com/repos/${GIT_REPO}/tags?t=$(date +%s)" 2>/dev/null)
+        if [ -n "$tags" ]; then
+            if command -v jq >/dev/null 2>&1; then
+                v=$(echo "$tags" | jq -r '.[].name' 2>/dev/null | sort -V | tail -1)
+            else
+                v=$(echo "$tags" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)".*/\1/' | sort -V | tail -1)
+            fi
         fi
     fi
+
+    # 3. If still empty, try git ls-remote
+    if [ -z "$v" ]; then
+        v=$(git ls-remote --tags --refs "https://github.com/${GIT_REPO}.git" 2>/dev/null | awk -F'/' '{print $NF}' | sort -V | tail -1)
+    fi
+
     if [ -n "$v" ]; then
         echo "$v" > "$LATEST_CACHE"
         echo "$v"
