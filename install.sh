@@ -209,15 +209,26 @@ install_bot() {
     run_step "Installing base tools (git, curl, nginx, mysql)" "apt-get install -y software-properties-common curl git unzip nginx certbot python3-certbot-nginx mysql-server"
     run_step "Installing PHP 8.3 & modules" "add-apt-repository -y ppa:ondrej/php && apt-get update -y && apt-get install -y php8.3-fpm php8.3-cli php8.3-mysql php8.3-curl php8.3-mbstring php8.3-xml php8.3-zip"
 
-    # MySQL database & user creation
+    # MySQL database & user creation (No backticks inside double quotes to prevent bash command substitution)
     run_step "Configuring MySQL database & user permissions" \
-        "mysql -e \"CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}'; ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}'; GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost'; FLUSH PRIVILEGES;\""
+        "mysql -e \"CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}'; ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}'; GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost'; FLUSH PRIVILEGES;\"" || { echo -e "  ${C_BAD}Failed to configure MySQL.${CR}"; return 1; }
 
-    # Clone project into /var/www/zorvex
-    run_step "Downloading Zorvex source files" "rm -rf '${APP_DIR}' && git clone https://github.com/${GIT_REPO}.git '${APP_DIR}'"
+    # Safe repository download/update without deleting current directory
+    if [ -d "${APP_DIR}/.git" ]; then
+        cd "${APP_DIR}"
+        run_step "Updating Zorvex repository files" "git fetch origin main && git reset --hard origin/main" || { echo -e "  ${C_BAD}Git reset failed.${CR}"; return 1; }
+    else
+        cd /root
+        rm -rf "${APP_DIR}"
+        run_step "Downloading Zorvex source files" "git clone https://github.com/${GIT_REPO}.git '${APP_DIR}'" || { echo -e "  ${C_BAD}Git clone failed.${CR}"; return 1; }
+        cd "${APP_DIR}"
+    fi
+
+    # Ensure directories exist
+    mkdir -p "${APP_DIR}/config" "${APP_DIR}/database" "${APP_DIR}/storage/logs" "${APP_DIR}/storage/backups" "${APP_DIR}/storage/cache"
 
     # Import schema directly as root via socket (100% reliable)
-    run_step "Initializing database tables & schema" "mysql '${DB_NAME}' < '${APP_DIR}/database/schema.sql'"
+    run_step "Initializing database tables & schema" "mysql ${DB_NAME} < '${APP_DIR}/database/schema.sql'" || { echo -e "  ${C_BAD}Failed to import schema.sql${CR}"; return 1; }
 
     # Configure app.php
     cat > "${APP_DIR}/config/app.php" << EOF
