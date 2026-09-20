@@ -1,0 +1,22 @@
+<Files "*.txt">
+    Require all denied
+</Files>
+<Files "*.json">
+    Require all denied
+</Files>
+<Files "*.sql">
+    Require all denied
+</Files>
+<Files "*.zip">
+    Require all denied
+</Files>
+
+Options -Indexes
+
+<FilesMatch "^error_log$|\.log$|\.log\.[0-9]+$">
+    Require all denied
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>

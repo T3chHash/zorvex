@@ -1,0 +1,2042 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>مستندات API — ZorvexBot</title>
+    <style>
+        :root {
+            --paper: #f2f5f4;
+            --surface: #ffffff;
+            --surface-2: #e9efed;
+            --ink: #0e1a18;
+            --ink-2: #47605b;
+            --ink-3: #7d918c;
+            --line: #d7e0dd;
+            --line-strong: #bccac6;
+            --accent: #0b6b60;
+            --accent-ink: #085248;
+            --accent-soft: #dbeeea;
+            --get: #14567f;
+            --get-bg: #dbe9f3;
+            --post: #8a4b06;
+            --post-bg: #f6e7d6;
+            --danger: #9a2c2c;
+            --code-bg: #0d1a18;
+            --code-ink: #d5e6e2;
+            --code-line: #1e302d;
+            --tok-key: #7fd8c6;
+            --tok-str: #e2c088;
+            --tok-num: #8fbce8;
+            --tok-lit: #c79ae0;
+            --tok-punc: #6f8783;
+
+            --sans: "Vazirmatn", "IRANSans", "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+            --mono: "JetBrains Mono", "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+            --radius: 6px;
+            --sidebar: 274px;
+            --shadow: 0 1px 2px rgba(14, 26, 24, .05), 0 8px 24px -16px rgba(14, 26, 24, .3);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --paper: #0a1312;
+                --surface: #101d1b;
+                --surface-2: #162523;
+                --ink: #e4efec;
+                --ink-2: #9db3ae;
+                --ink-3: #6f8783;
+                --line: #1f302d;
+                --line-strong: #2b403c;
+                --accent: #48c9b6;
+                --accent-ink: #6fdac9;
+                --accent-soft: #123430;
+                --get: #86bde4;
+                --get-bg: #12293a;
+                --post: #dda86a;
+                --post-bg: #33240f;
+                --danger: #e08b8b;
+                --code-bg: #071110;
+                --code-line: #162523;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            --paper: #0a1312;
+            --surface: #101d1b;
+            --surface-2: #162523;
+            --ink: #e4efec;
+            --ink-2: #9db3ae;
+            --ink-3: #6f8783;
+            --line: #1f302d;
+            --line-strong: #2b403c;
+            --accent: #48c9b6;
+            --accent-ink: #6fdac9;
+            --accent-soft: #123430;
+            --get: #86bde4;
+            --get-bg: #12293a;
+            --post: #dda86a;
+            --post-bg: #33240f;
+            --danger: #e08b8b;
+            --code-bg: #071110;
+            --code-line: #162523;
+        }
+
+        :root[data-theme="light"] {
+            --paper: #f2f5f4;
+            --surface: #ffffff;
+            --surface-2: #e9efed;
+            --ink: #0e1a18;
+            --ink-2: #47605b;
+            --ink-3: #7d918c;
+            --line: #d7e0dd;
+            --line-strong: #bccac6;
+            --accent: #0b6b60;
+            --accent-ink: #085248;
+            --accent-soft: #dbeeea;
+            --get: #14567f;
+            --get-bg: #dbe9f3;
+            --post: #8a4b06;
+            --post-bg: #f6e7d6;
+            --danger: #9a2c2c;
+            --code-bg: #0d1a18;
+            --code-line: #1e302d;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 84px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            html {
+                scroll-behavior: auto;
+            }
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: .01ms !important;
+                transition-duration: .01ms !important;
+            }
+        }
+
+        body {
+            margin: 0;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--sans);
+            font-size: 15px;
+            line-height: 1.8;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a {
+            color: var(--accent-ink);
+            text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+            text-underline-offset: 3px;
+        }
+
+        a:hover {
+            text-decoration-color: currentColor;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+            border-radius: 3px;
+        }
+
+        code,
+        kbd,
+        pre {
+            font-family: var(--mono);
+            font-feature-settings: "liga" 0;
+        }
+
+        .ltr {
+            direction: ltr;
+            text-align: left;
+            unicode-bidi: isolate;
+        }
+
+        /* ---------- top bar ---------- */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            background: color-mix(in srgb, var(--surface) 88%, transparent);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .topbar__in {
+            max-width: 1360px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            letter-spacing: -.01em;
+            white-space: nowrap;
+        }
+
+        .brand__mark {
+            width: 26px;
+            height: 26px;
+            flex: none;
+        }
+
+        .brand__sub {
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--ink-3);
+            border: 1px solid var(--line-strong);
+            border-radius: 999px;
+            padding: 1px 9px;
+        }
+
+        .baseurl {
+            margin-inline-start: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--ink-2);
+        }
+
+        .baseurl label {
+            white-space: nowrap;
+        }
+
+        .baseurl input {
+            direction: ltr;
+            text-align: left;
+            font-family: var(--mono);
+            font-size: 12px;
+            width: 250px;
+            max-width: 42vw;
+            padding: 6px 10px;
+            color: var(--ink);
+            background: var(--surface-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+        }
+
+        .iconbtn {
+            flex: none;
+            width: 34px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            color: var(--ink-2);
+            background: var(--surface-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            cursor: pointer;
+        }
+
+        .iconbtn:hover {
+            color: var(--ink);
+            border-color: var(--line-strong);
+        }
+
+        .iconbtn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        :root[data-theme="dark"] .iconbtn .i-moon,
+        .iconbtn .i-sun {
+            display: none;
+        }
+
+        :root[data-theme="dark"] .iconbtn .i-sun,
+        .iconbtn .i-moon {
+            display: block;
+        }
+
+        @media (prefers-color-scheme: dark) {
+
+            :root:not([data-theme]) .iconbtn .i-moon {
+                display: none;
+            }
+
+            :root:not([data-theme]) .iconbtn .i-sun {
+                display: block;
+            }
+        }
+
+        /* ---------- shell ---------- */
+        .shell {
+            max-width: 1360px;
+            margin: 0 auto;
+            padding: 0 24px 96px;
+            display: grid;
+            grid-template-columns: var(--sidebar) minmax(0, 1fr);
+            gap: 44px;
+            align-items: start;
+        }
+
+        /* ---------- sidebar ---------- */
+        .sidebar {
+            position: sticky;
+            top: 60px;
+            max-height: calc(100vh - 76px);
+            overflow-y: auto;
+            padding: 22px 0 40px;
+            font-size: 13.5px;
+            scrollbar-width: thin;
+        }
+
+        .filter {
+            position: relative;
+            margin-bottom: 18px;
+        }
+
+        .filter input {
+            width: 100%;
+            padding: 9px 34px 9px 12px;
+            font-family: inherit;
+            font-size: 13px;
+            color: var(--ink);
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+        }
+
+        .filter input::placeholder {
+            color: var(--ink-3);
+        }
+
+        .filter svg {
+            position: absolute;
+            inset-inline-end: 11px;
+            top: 11px;
+            width: 14px;
+            height: 14px;
+            color: var(--ink-3);
+            pointer-events: none;
+        }
+
+        .navgroup {
+            margin-bottom: 22px;
+        }
+
+        .navgroup__title {
+            display: flex;
+            align-items: baseline;
+            gap: 7px;
+            margin: 0 0 7px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--ink-3);
+        }
+
+        .navgroup__count {
+            font-family: var(--mono);
+            font-size: 10px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .navgroup ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            border-inline-start: 1px solid var(--line);
+        }
+
+        .navgroup li a {
+            display: block;
+            padding: 3px 12px;
+            margin-inline-start: -1px;
+            border-inline-start: 1px solid transparent;
+            font-family: var(--mono);
+            font-size: 12.5px;
+            direction: ltr;
+            text-align: right;
+            color: var(--ink-2);
+            text-decoration: none;
+        }
+
+        .navgroup li a:hover {
+            color: var(--ink);
+            border-inline-start-color: var(--line-strong);
+        }
+
+        .navgroup li a.is-active {
+            color: var(--accent-ink);
+            font-weight: 600;
+            border-inline-start-color: var(--accent);
+        }
+
+        .nav-empty {
+            display: none;
+            padding: 6px 2px;
+            color: var(--ink-3);
+            font-size: 12.5px;
+        }
+
+        /* ---------- content ---------- */
+        .content {
+            min-width: 0;
+            padding-top: 30px;
+        }
+
+        .lede {
+            max-width: 68ch;
+        }
+
+        h1 {
+            margin: 0 0 6px;
+            font-size: clamp(1.7rem, 1.2rem + 1.6vw, 2.2rem);
+            line-height: 1.35;
+            letter-spacing: -.02em;
+            text-wrap: balance;
+        }
+
+        .lede p {
+            color: var(--ink-2);
+            margin: 0 0 14px;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 1.3rem;
+            letter-spacing: -.01em;
+            text-wrap: balance;
+        }
+
+        h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        section {
+            scroll-margin-top: 84px;
+        }
+
+        .block {
+            margin-top: 52px;
+        }
+
+        .block__head {
+            padding-bottom: 14px;
+            border-bottom: 2px solid var(--line-strong);
+        }
+
+        .block__head p {
+            margin: 8px 0 0;
+            max-width: 68ch;
+            color: var(--ink-2);
+        }
+
+        .block__path {
+            display: inline-block;
+            margin-top: 10px;
+            font-family: var(--mono);
+            font-size: 13px;
+            direction: ltr;
+            color: var(--accent-ink);
+            background: var(--accent-soft);
+            border-radius: var(--radius);
+            padding: 3px 10px;
+        }
+
+        /* ---------- prose cards ---------- */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 20px 22px;
+            margin-top: 18px;
+            box-shadow: var(--shadow);
+        }
+
+        .card>*:first-child {
+            margin-top: 0;
+        }
+
+        .card>*:last-child {
+            margin-bottom: 0;
+        }
+
+        .card h3 {
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            margin: 0 0 12px;
+            max-width: 68ch;
+            color: var(--ink-2);
+        }
+
+        .note {
+            border-inline-start: 3px solid var(--accent);
+            background: var(--accent-soft);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+
+        .note strong {
+            color: var(--ink);
+        }
+
+        .note p {
+            margin: 0;
+            color: var(--ink-2);
+            max-width: 68ch;
+        }
+
+        /* ---------- operation ---------- */
+        .op {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            margin-top: 14px;
+            overflow: hidden;
+        }
+
+        .op__head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 13px 18px;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .op__name {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 600;
+            direction: ltr;
+        }
+
+        .op__anchor {
+            margin-inline-start: auto;
+            font-size: 12px;
+            color: var(--ink-3);
+            text-decoration: none;
+            opacity: 0;
+        }
+
+        .op:hover .op__anchor,
+        .op__anchor:focus-visible {
+            opacity: 1;
+        }
+
+        .op__body {
+            padding: 16px 18px 18px;
+        }
+
+        .op__desc {
+            margin: 0 0 14px;
+            max-width: 68ch;
+            color: var(--ink-2);
+        }
+
+        .chip {
+            flex: none;
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .05em;
+            padding: 2px 9px;
+            border-radius: 3px;
+        }
+
+        .chip--get {
+            color: var(--get);
+            background: var(--get-bg);
+        }
+
+        .chip--post {
+            color: var(--post);
+            background: var(--post-bg);
+        }
+
+        /* ---------- tables ---------- */
+        .tablewrap {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+
+        th {
+            text-align: right;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--ink-3);
+            background: var(--surface-2);
+            padding: 8px 14px;
+            white-space: nowrap;
+            border-bottom: 1px solid var(--line);
+        }
+
+        td {
+            padding: 9px 14px;
+            border-bottom: 1px solid var(--line);
+            vertical-align: top;
+            color: var(--ink-2);
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        td.p-name {
+            font-family: var(--mono);
+            font-size: 12.5px;
+            direction: ltr;
+            text-align: right;
+            color: var(--ink);
+            white-space: nowrap;
+        }
+
+        td.p-type {
+            font-family: var(--mono);
+            font-size: 12px;
+            direction: ltr;
+            text-align: right;
+            color: var(--ink-3);
+            white-space: nowrap;
+        }
+
+        td.p-req {
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .req-yes {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .req-no {
+            color: var(--ink-3);
+        }
+
+        .num {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ---------- code ---------- */
+        .snippet {
+            position: relative;
+            background: var(--code-bg);
+            border: 1px solid var(--code-line);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .snippet+.snippet {
+            margin-top: 12px;
+        }
+
+        .snippet__bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 12px;
+            border-bottom: 1px solid var(--code-line);
+        }
+
+        .snippet__label {
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: #7e938f;
+        }
+
+        .copy {
+            margin-inline-start: auto;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: #9db3ae;
+            background: transparent;
+            border: 1px solid #26383500;
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+        }
+
+        .copy:hover {
+            color: #d5e6e2;
+            border-color: #2b403c;
+        }
+
+        .copy.is-done {
+            color: var(--tok-key);
+        }
+
+        pre {
+            margin: 0;
+            padding: 14px 16px;
+            overflow-x: auto;
+            direction: ltr;
+            text-align: left;
+            font-size: 12.5px;
+            line-height: 1.75;
+            color: var(--code-ink);
+            tab-size: 2;
+        }
+
+        .t-key {
+            color: var(--tok-key);
+        }
+
+        .t-str {
+            color: var(--tok-str);
+        }
+
+        .t-num {
+            color: var(--tok-num);
+        }
+
+        .t-lit {
+            color: var(--tok-lit);
+        }
+
+        .t-punc {
+            color: var(--tok-punc);
+        }
+
+        .t-cmd {
+            color: #9db3ae;
+        }
+
+        .t-flag {
+            color: var(--tok-key);
+        }
+
+        /* ---------- misc ---------- */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 14px;
+        }
+
+        .kv {
+            display: flex;
+            gap: 8px;
+            font-size: 13.5px;
+            padding: 7px 0;
+            border-bottom: 1px dashed var(--line);
+        }
+
+        .kv:last-child {
+            border-bottom: 0;
+        }
+
+        .kv dt {
+            flex: none;
+            width: 96px;
+            color: var(--ink-3);
+        }
+
+        .kv dd {
+            flex: 1;
+            margin: 0;
+            font-family: var(--mono);
+            font-size: 12.5px;
+            direction: ltr;
+            text-align: left;
+        }
+
+        footer {
+            margin-top: 64px;
+            padding-top: 20px;
+            border-top: 1px solid var(--line);
+            font-size: 13px;
+            color: var(--ink-3);
+        }
+
+        noscript .card {
+            border-color: var(--danger);
+        }
+
+        @media (max-width: 940px) {
+            .shell {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 0;
+                padding-inline: 18px;
+            }
+
+            .sidebar {
+                position: static;
+                max-height: none;
+                overflow: visible;
+                padding-bottom: 8px;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .baseurl label {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="topbar__in">
+            <div class="brand">
+                <svg class="brand__mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="1.5" y="1.5" width="21" height="21" rx="5" stroke="currentColor" stroke-width="1.6" />
+                    <path d="M6.5 15.5V8.5l3 4 3-4v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <circle cx="16.75" cy="14.4" r="1.5" fill="currentColor" />
+                </svg>
+                <span>ZorvexBot</span>
+                <span class="brand__sub">API</span>
+            </div>
+
+            <div class="baseurl">
+                <label for="baseInput">آدرس پایه</label>
+                <input id="baseInput" type="text" spellcheck="false" value="https://example.com/api"
+                    aria-label="آدرس پایه سرویس" />
+            </div>
+
+            <button class="iconbtn" id="themeBtn" type="button" aria-label="تغییر تم روشن و تیره">
+                <svg class="i-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M20 14.5A8.2 8.2 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" stroke="currentColor"
+                        stroke-width="1.7" stroke-linejoin="round" />
+                </svg>
+                <svg class="i-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.7" />
+                    <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"
+                        stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="shell">
+        <aside class="sidebar">
+            <nav id="nav" aria-label="فهرست مستندات">
+                <div class="filter">
+                    <input id="filterInput" type="search" placeholder="جستجوی اکشن…" autocomplete="off"
+                        aria-label="جستجو در اکشن‌ها" />
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2" />
+                        <path d="m15.5 15.5 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <p class="nav-empty" id="navEmpty">چیزی پیدا نشد.</p>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <div class="lede">
+                <h1>مستندات API ربات هوشمند Zorvex</h1>
+                <p>
+                    این مرجع تمام اندپوینت‌های مدیریتی ربات را پوشش می‌دهد: کاربران، فاکتورها، پرداخت‌ها، محصولات،
+                    پنل‌ها، دسته‌بندی‌ها، کدهای تخفیف و تنظیمات. همهٔ درخواست‌ها با یک توکن ثابت احراز هویت می‌شوند و
+                    بدنه و پاسخ‌ها JSON هستند.
+                </p>
+            </div>
+
+            <noscript>
+                <div class="card">
+                    <h3>جاوااسکریپت غیرفعال است</h3>
+                    <p>این صفحه فهرست اندپوینت‌ها را با جاوااسکریپت می‌سازد. لطفاً آن را فعال کنید.</p>
+                </div>
+            </noscript>
+
+            <!-- ============ getting started ============ -->
+            <section class="block" id="start">
+                <div class="block__head">
+                    <h2>شروع کار</h2>
+                    <p>آدرس پایه را در نوار بالا وارد کنید تا همهٔ نمونه‌کدهای این صفحه با دامنهٔ شما به‌روز شوند.</p>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>مشخصات کلی</h3>
+                        <dl style="margin:0">
+                            <div class="kv">
+                                <dt>آدرس پایه</dt>
+                                <dd class="ltr" data-base-text>https://example.com/api</dd>
+                            </div>
+                            <div class="kv">
+                                <dt>قالب</dt>
+                                <dd class="ltr">application/json</dd>
+                            </div>
+                            <div class="kv">
+                                <dt>احراز هویت</dt>
+                                <dd class="ltr">Token: &lt;token&gt;</dd>
+                            </div>
+                            <div class="kv">
+                                <dt>انکودینگ</dt>
+                                <dd class="ltr">UTF-8</dd>
+                            </div>
+                        </dl>
+                    </div>
+
+                    <div class="card">
+                        <h3>گرفتن توکن</h3>
+                        <p>
+                            در ربات دستور <code>/token2</code> را بفرستید. ربات یک توکن تازه می‌سازد، آن را در
+                            <code class="ltr">api/hash.txt</code> ذخیره می‌کند و برایتان می‌فرستد. با هر بار اجرای این
+                            دستور توکن قبلی باطل می‌شود.
+                        </p>
+                        <p style="margin:0">کلید <code>APIKEY</code> موجود در <code class="ltr">config.php</code> هم
+                            به‌عنوان توکن معتبر پذیرفته می‌شود.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>یک درخواست نمونه</h3>
+                    <p>هر درخواست یک <code>actions</code> در بدنه دارد که مشخص می‌کند کدام عملیات اجرا شود.</p>
+                    <div class="snippet" data-snippet>
+                        <div class="snippet__bar"><span class="snippet__label">curl</span>
+                            <button class="copy" type="button">کپی</button>
+                        </div>
+                        <pre data-lang="shell" data-src="curl -X GET &quot;{BASE}/users&quot; \
+  -H &quot;Token: YOUR_TOKEN&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;actions&quot;:&quot;users&quot;,&quot;limit&quot;:20,&quot;page&quot;:1}'"></pre>
+                    </div>
+                    <div class="snippet" data-snippet>
+                        <div class="snippet__bar"><span class="snippet__label">پاسخ ۲۰۰</span>
+                            <button class="copy" type="button">کپی</button>
+                        </div>
+                        <pre data-lang="json" data-src="{
+  &quot;status&quot;: true,
+  &quot;msg&quot;: &quot;Successful&quot;,
+  &quot;obj&quot;: {
+    &quot;users&quot;: [],
+    &quot;pagination&quot;: {
+      &quot;total_users&quot;: 0,
+      &quot;total_pages&quot;: 0,
+      &quot;current_page&quot;: 1,
+      &quot;per_page&quot;: 20
+    }
+  }
+}"></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ conventions ============ -->
+            <section class="block" id="conventions">
+                <div class="block__head">
+                    <h2>قواعد مشترک</h2>
+                    <p>این قواعد در تمام اندپوینت‌ها یکسان‌اند.</p>
+                </div>
+
+                <div class="card">
+                    <h3>متد و بدنه</h3>
+                    <p>
+                        هر اکشن متد مشخص خودش را دارد؛ اکشن‌های خواندنی <code>GET</code> و اکشن‌های تغییردهنده
+                        <code>POST</code>. اگر متد اشتباه باشد پاسخ <code>405</code> با پیام
+                        <code class="ltr">method invalid</code> برمی‌گردد.
+                    </p>
+                    <div class="note">
+                        <p><strong>توجه:</strong> اکشن‌های <code>GET</code> هم بدنهٔ JSON می‌گیرند. بعضی کتابخانه‌ها
+                            بدنهٔ درخواست GET را حذف می‌کنند؛ در آن صورت باید کلاینت را طوری تنظیم کنید که بدنه را
+                            نگه دارد، وگرنه پاسخ <code class="ltr">data invalid</code> می‌گیرید.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>ساختار پاسخ</h3>
+                    <p>همهٔ اندپوینت‌ها به‌جز <code class="ltr">/keyboard</code>، <code class="ltr">/log</code> و
+                        <code class="ltr">/statbot</code> پاسخ را در یک پوشش ثابت برمی‌گردانند.</p>
+                    <div class="tablewrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>فیلد</th>
+                                    <th>نوع</th>
+                                    <th>توضیح</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-name">status</td>
+                                    <td class="p-type">boolean</td>
+                                    <td>موفقیت عملیات. در خطاهای اعتبارسنجی <code>false</code> است حتی وقتی کد HTTP
+                                        ۲۰۰ باشد.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-name">msg</td>
+                                    <td class="p-type">string</td>
+                                    <td>پیام وضعیت یا شرح خطا.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-name">obj</td>
+                                    <td class="p-type">object | array</td>
+                                    <td>دادهٔ پاسخ. در عملیات‌های بدون خروجی آرایهٔ خالی است.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>صفحه‌بندی</h3>
+                    <p>اکشن‌های فهرستی این سه پارامتر را می‌پذیرند و یک شیء <code>pagination</code> برمی‌گردانند.</p>
+                    <div class="tablewrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>پارامتر</th>
+                                    <th>نوع</th>
+                                    <th>پیش‌فرض</th>
+                                    <th>توضیح</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-name">limit</td>
+                                    <td class="p-type">number</td>
+                                    <td class="num">50</td>
+                                    <td>تعداد رکورد در هر صفحه، بین ۱ تا ۱۰۰۰.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-name">page</td>
+                                    <td class="p-type">number</td>
+                                    <td class="num">1</td>
+                                    <td>شمارهٔ صفحه از ۱ به بالا.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-name">q</td>
+                                    <td class="p-type">string</td>
+                                    <td>—</td>
+                                    <td>عبارت جستجو. ستون‌های جستجو در هر اکشن ذکر شده است.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>خطاها</h3>
+                    <div class="tablewrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>کد</th>
+                                    <th>پیام</th>
+                                    <th>علت</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-type num">403</td>
+                                    <td class="p-name">token invalid</td>
+                                    <td>هدر <code>Token</code> ارسال نشده یا با توکن سرور یکی نیست.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-type num">405</td>
+                                    <td class="p-name">method invalid</td>
+                                    <td>متد HTTP با متد اکشن نمی‌خواند.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-type num">200</td>
+                                    <td class="p-name">data invalid</td>
+                                    <td>بدنه JSON معتبر نیست یا خالی است.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-type num">200</td>
+                                    <td class="p-name">Action Invalid</td>
+                                    <td>مقدار <code>actions</code> برای این اندپوینت شناخته‌شده نیست.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-type num">200</td>
+                                    <td class="p-name">Missing required fields: …</td>
+                                    <td>یک یا چند پارامتر الزامی ارسال نشده است.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-type num">200</td>
+                                    <td class="p-name">&lt;field&gt; invalid / out of range</td>
+                                    <td>پارامتر عددی نیست یا خارج از بازهٔ مجاز است.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-type num">500</td>
+                                    <td class="p-name">Database error occurred</td>
+                                    <td>خطای پایگاه داده. جزئیات در <code class="ltr">error_log</code> ثبت می‌شود.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>ثبت درخواست‌ها</h3>
+                    <p style="margin:0">
+                        هر درخواست موفقِ احراز هویت‌شده با هدرها، بدنه، IP و نام اکشن در جدول
+                        <code class="ltr">logs_api</code> ذخیره می‌شود.
+                    </p>
+                </div>
+            </section>
+
+            <div id="groups"></div>
+
+            <footer>
+                <p>ساخته‌شده بر پایهٔ کد اندپوینت‌های پوشهٔ <code class="ltr">api/</code>. با افزودن اکشن جدید، آرایهٔ
+                    <code class="ltr">GROUPS</code> در انتهای همین فایل را به‌روز کنید.</p>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        "use strict";
+
+        /* =====================================================================
+           Endpoint reference. Mirrors the match() tables in api/*.php.
+           params: [name, type, required, description]
+           ===================================================================== */
+        const GROUPS = [
+            {
+                id: "users", path: "/users", title: "کاربران",
+                desc: "خواندن و مدیریت کاربران ربات: موجودی، وضعیت، نمایندگی، زیرمجموعه و ربات اختصاصی.",
+                ops: [
+                    {
+                        name: "users", method: "GET",
+                        desc: "فهرست صفحه‌بندی‌شدهٔ کاربران، مرتب بر اساس تاریخ عضویت و موجودی. جستجو روی شناسه و نام کاربری انجام می‌شود.",
+                        params: [
+                            ["limit", "number", false, "تعداد در صفحه، ۱ تا ۱۰۰۰. پیش‌فرض ۵۰."],
+                            ["page", "number", false, "شمارهٔ صفحه. پیش‌فرض ۱."],
+                            ["q", "string", false, "جستجو در شناسهٔ عددی و نام کاربری."],
+                            ["agent", "string", false, "فیلتر نقش: f کاربر عادی، n نماینده، n2 نمایندهٔ ویژه."]
+                        ],
+                        body: { actions: "users", limit: 20, page: 1, q: "", agent: "n" }
+                    },
+                    {
+                        name: "user", method: "GET",
+                        desc: "اطلاعات کامل یک کاربر همراه با جمع خریدها، پرداخت‌ها، سرویس‌های جانبی، ربات اختصاصی و فهرست پنل‌ها و محصولات.",
+                        params: [["chat_id", "number", true, "شناسهٔ عددی کاربر در تلگرام."]],
+                        body: { actions: "user", chat_id: 123456789 }
+                    },
+                    {
+                        name: "user_add", method: "POST",
+                        desc: "ساخت کاربر تازه. مشخصات از تلگرام با getChat خوانده می‌شود، پس کاربر باید قبلاً ربات را استارت کرده باشد.",
+                        params: [["chat_id", "number", true, "شناسهٔ عددی کاربر در تلگرام."]],
+                        body: { actions: "user_add", chat_id: 123456789 }
+                    },
+                    {
+                        name: "block_user", method: "POST",
+                        desc: "مسدود یا رفع مسدودی کاربر. هنگام رفع مسدودی به کاربر اطلاع داده می‌شود و رویداد در کانال گزارش ثبت می‌گردد.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["description", "string", true, "دلیل مسدودسازی."],
+                            ["type_block", "string", true, "مقدار block برای مسدودسازی؛ هر مقدار دیگری رفع مسدودی است."]
+                        ],
+                        body: { actions: "block_user", chat_id: 123456789, description: "تخلف در استفاده", type_block: "block" }
+                    },
+                    {
+                        name: "verify_user", method: "POST",
+                        desc: "تغییر وضعیت تأیید کاربر. اگر وضعیت فعلی ۱ باشد غیرفعال می‌شود، در غیر این صورت تأیید شده و به کاربر پیام می‌رود.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["type_verify", "string", true, "وضعیت فعلی تأیید: \"1\" یا \"0\"."]
+                        ],
+                        body: { actions: "verify_user", chat_id: 123456789, type_verify: "0" }
+                    },
+                    {
+                        name: "change_status_user", method: "POST",
+                        desc: "ثبت درخواست تغییر وضعیت. اگر درخواست باز دیگری برای کاربر وجود داشته باشد با پیام actions exits رد می‌شود.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["type", "string", true, "مقدار active یا هر مقدار دیگر برای غیرفعال."]
+                        ],
+                        body: { actions: "change_status_user", chat_id: 123456789, type: "active" }
+                    },
+                    {
+                        name: "add_balance", method: "POST",
+                        desc: "افزایش موجودی کیف پول و ارسال پیام اطلاع‌رسانی به کاربر.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["amount", "number", true, "مبلغ افزایش. عدد صحیح بزرگ‌تر از صفر."]
+                        ],
+                        body: { actions: "add_balance", chat_id: 123456789, amount: 50000 }
+                    },
+                    {
+                        name: "withdrawal", method: "POST",
+                        desc: "کسر از موجودی کیف پول و ارسال پیام اطلاع‌رسانی به کاربر.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["amount", "number", true, "مبلغ کسر. عدد صحیح بزرگ‌تر از صفر."]
+                        ],
+                        body: { actions: "withdrawal", chat_id: 123456789, amount: 20000 }
+                    },
+                    {
+                        name: "zero_balance", method: "POST",
+                        desc: "صفر کردن موجودی کیف پول کاربر.",
+                        params: [["chat_id", "number", true, "شناسهٔ کاربر."]],
+                        body: { actions: "zero_balance", chat_id: 123456789 }
+                    },
+                    {
+                        name: "accept_number", method: "POST",
+                        desc: "تأیید دستی شمارهٔ تماس کاربر توسط ادمین.",
+                        params: [["chat_id", "number", true, "شناسهٔ کاربر."]],
+                        body: { actions: "accept_number", chat_id: 123456789 }
+                    },
+                    {
+                        name: "send_message", method: "POST",
+                        desc: "ارسال پیام به کاربر. بدون فیلد file پیام متنی ساده ارسال می‌شود؛ با file فایل به‌صورت base64 فرستاده می‌شود و text به‌عنوان کپشن قرار می‌گیرد.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["text", "string", true, "متن پیام یا کپشن فایل."],
+                            ["file", "string", false, "محتوای فایل به‌صورت base64."],
+                            ["content_type", "string", false, "نوع MIME فایل. با ارسال file الزامی است. مقادیر پشتیبانی‌شده: image/*، video/*، audio/*، application/*."]
+                        ],
+                        body: { actions: "send_message", chat_id: 123456789, text: "سلام", file: null }
+                    },
+                    {
+                        name: "set_limit_test", method: "POST",
+                        desc: "تعیین سقف تعداد اکانت تست برای کاربر.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["limit_test", "number", true, "تعداد مجاز اکانت تست."]
+                        ],
+                        body: { actions: "set_limit_test", chat_id: 123456789, limit_test: 2 }
+                    },
+                    {
+                        name: "transfer_account", method: "POST",
+                        desc: "انتقال کامل حساب به شناسهٔ تلگرام جدید. فاکتورها، پرداخت‌ها، تیکت‌ها، سرویس‌های جانبی و ربات اختصاصی هم منتقل می‌شوند. اگر شناسهٔ مقصد از قبل وجود داشته باشد حذف می‌شود.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ فعلی کاربر."],
+                            ["new_userid", "number", true, "شناسهٔ جدید. باید با شناسهٔ فعلی متفاوت باشد."]
+                        ],
+                        body: { actions: "transfer_account", chat_id: 123456789, new_userid: 987654321 }
+                    },
+                    {
+                        name: "join_channel_exception", method: "POST",
+                        desc: "معاف کردن کاربر از اجبار عضویت در کانال.",
+                        params: [["chat_id", "number", true, "شناسهٔ کاربر."]],
+                        body: { actions: "join_channel_exception", chat_id: 123456789 }
+                    },
+                    {
+                        name: "cron_notif", method: "POST",
+                        desc: "روشن و خاموش کردن اعلان‌های خودکار سررسید و حجم برای کاربر.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["type", "string", true, "وضعیت فعلی: \"1\" یعنی روشن است و خاموش می‌شود."]
+                        ],
+                        body: { actions: "cron_notif", chat_id: 123456789, type: "1" }
+                    },
+                    {
+                        name: "manage_show_cart", method: "POST",
+                        desc: "روشن و خاموش کردن نمایش پرداخت کارت‌به‌کارت برای کاربر.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["type", "string", true, "وضعیت فعلی: \"1\" یعنی روشن است و خاموش می‌شود."]
+                        ],
+                        body: { actions: "manage_show_cart", chat_id: 123456789, type: "1" }
+                    },
+                    {
+                        name: "affiliates_users", method: "GET",
+                        desc: "فهرست شناسهٔ کاربرانی که با لینک دعوت این کاربر ثبت‌نام کرده‌اند.",
+                        params: [["chat_id", "number", true, "شناسهٔ کاربر معرف."]],
+                        body: { actions: "affiliates_users", chat_id: 123456789 }
+                    },
+                    {
+                        name: "remove_affiliates", method: "POST",
+                        desc: "حذف تمام زیرمجموعه‌های کاربر و صفر کردن شمارندهٔ زیرمجموعه‌گیری او.",
+                        params: [["chat_id", "number", true, "شناسهٔ کاربر معرف."]],
+                        body: { actions: "remove_affiliates", chat_id: 123456789 }
+                    },
+                    {
+                        name: "remove_affiliate_user", method: "POST",
+                        desc: "جدا کردن یک کاربر از معرفش.",
+                        params: [["chat_id", "number", true, "شناسهٔ کاربر زیرمجموعه."]],
+                        body: { actions: "remove_affiliate_user", chat_id: 123456789 }
+                    },
+                    {
+                        name: "set_agent", method: "POST",
+                        desc: "تغییر نقش کاربر بین کاربر عادی، نماینده و نمایندهٔ ویژه.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["agent_type", "string", true, "یکی از f، n یا n2."]
+                        ],
+                        body: { actions: "set_agent", chat_id: 123456789, agent_type: "n" }
+                    },
+                    {
+                        name: "set_expire_agent", method: "POST",
+                        desc: "تعیین تاریخ انقضای نمایندگی بر حسب روز از امروز.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["expire_time", "number", true, "تعداد روز اعتبار. مقدار ۰ یعنی بدون انقضا."]
+                        ],
+                        body: { actions: "set_expire_agent", chat_id: 123456789, expire_time: 30 }
+                    },
+                    {
+                        name: "set_becoming_negative", method: "POST",
+                        desc: "تعیین سقف بدهکار شدن نماینده؛ تا این مبلغ می‌تواند با موجودی منفی خرید کند.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["amount", "number", true, "سقف مجاز بدهی. عدد صحیح ۰ یا بیشتر."]
+                        ],
+                        body: { actions: "set_becoming_negative", chat_id: 123456789, amount: 100000 }
+                    },
+                    {
+                        name: "set_percentage_discount", method: "POST",
+                        desc: "تخفیف درصدی دائمی روی تمام خریدهای کاربر.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["percentage", "number", true, "درصد تخفیف بین ۰ تا ۱۰۰."]
+                        ],
+                        body: { actions: "set_percentage_discount", chat_id: 123456789, percentage: 15 }
+                    },
+                    {
+                        name: "SetLimitChangeLocation", method: "POST",
+                        desc: "تعیین سقف دفعات تغییر لوکیشن سرویس برای کاربر.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر."],
+                            ["Limit", "number", true, "تعداد مجاز تغییر لوکیشن. عدد صحیح ۰ یا بیشتر."]
+                        ],
+                        body: { actions: "SetLimitChangeLocation", chat_id: 123456789, Limit: 3 }
+                    },
+                    {
+                        name: "active_bot_agent", method: "POST",
+                        desc: "ساخت ربات اختصاصی برای نماینده. توکن اعتبارسنجی می‌شود، فایل‌های ربات از روی قالب پیش‌فرض کپی و وبهوک تنظیم می‌شود. هر کاربر فقط یک ربات می‌تواند داشته باشد.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ نماینده."],
+                            ["token", "string", true, "توکن ربات تلگرام با قالب 123456:ABC-DEF…"]
+                        ],
+                        body: { actions: "active_bot_agent", chat_id: 123456789, token: "123456789:AAEhBOweik6ad9r_QXK4oJ0" }
+                    },
+                    {
+                        name: "remove_agent_bot", method: "POST",
+                        desc: "حذف ربات اختصاصی نماینده: پاک کردن فایل‌ها، حذف وبهوک و حذف رکورد از پایگاه داده.",
+                        params: [["chat_id", "number", true, "شناسهٔ نماینده."]],
+                        body: { actions: "remove_agent_bot", chat_id: 123456789 }
+                    },
+                    {
+                        name: "set_price_volume_agent_bot", method: "POST",
+                        desc: "تعیین قیمت پایهٔ هر گیگابایت در ربات اختصاصی نماینده.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ نماینده."],
+                            ["amount", "number", true, "قیمت هر گیگابایت. عدد صحیح ۰ یا بیشتر."]
+                        ],
+                        body: { actions: "set_price_volume_agent_bot", chat_id: 123456789, amount: 4000 }
+                    },
+                    {
+                        name: "set_price_time_agent_bot", method: "POST",
+                        desc: "تعیین قیمت پایهٔ هر روز در ربات اختصاصی نماینده.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ نماینده."],
+                            ["amount", "number", true, "قیمت هر روز. عدد صحیح ۰ یا بیشتر."]
+                        ],
+                        body: { actions: "set_price_time_agent_bot", chat_id: 123456789, amount: 4000 }
+                    },
+                    {
+                        name: "SetPanelAgentShow", method: "POST",
+                        desc: "تعیین پنل‌هایی که در ربات اختصاصی نماینده پنهان می‌شوند.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ نماینده."],
+                            ["panels", "array", true, "آرایه‌ای از نام پنل‌ها."]
+                        ],
+                        body: { actions: "SetPanelAgentShow", chat_id: 123456789, panels: ["Germany", "Finland"] }
+                    }
+                ]
+            },
+
+            {
+                id: "invoice", path: "/invoice", title: "فاکتورها و سرویس‌ها",
+                desc: "فاکتورهای فروش، ساخت سرویس دستی، تمدید و تغییر وضعیت کانفیگ روی پنل.",
+                ops: [
+                    {
+                        name: "invoices", method: "GET",
+                        desc: "فهرست فاکتورها، جدیدترین اول. جستجو روی شناسهٔ کاربر، نام کاربری سرویس و یادداشت انجام می‌شود.",
+                        params: [
+                            ["limit", "number", false, "تعداد در صفحه، ۱ تا ۱۰۰۰. پیش‌فرض ۵۰."],
+                            ["page", "number", false, "شمارهٔ صفحه. پیش‌فرض ۱."],
+                            ["q", "string", false, "جستجو در id_user، username و note."]
+                        ],
+                        body: { actions: "invoices", limit: 20, page: 1 }
+                    },
+                    {
+                        name: "invoice", method: "GET",
+                        desc: "جزئیات یک فاکتور همراه با شمارهٔ تماس و نقش خریدار، تعداد و جمع خریدهای او و وضعیت زندهٔ سرویس روی پنل.",
+                        params: [["id_invoice", "string", true, "شناسهٔ فاکتور."]],
+                        body: { actions: "invoice", id_invoice: "a1b2c3d4" }
+                    },
+                    {
+                        name: "services", method: "GET",
+                        desc: "فهرست سرویس‌های جانبی پرداخت‌شده مانند تمدید، افزایش حجم و تغییر لوکیشن.",
+                        params: [
+                            ["limit", "number", false, "تعداد در صفحه، ۱ تا ۱۰۰۰. پیش‌فرض ۵۰."],
+                            ["page", "number", false, "شمارهٔ صفحه. پیش‌فرض ۱."],
+                            ["q", "string", false, "جستجو در id_user و username."]
+                        ],
+                        body: { actions: "services", limit: 20 }
+                    },
+                    {
+                        name: "invoice_add", method: "POST",
+                        desc: "ساخت دستی سرویس روی پنل و ثبت فاکتور برای کاربر. اگر نام کاربری از قبل در فاکتورها باشد درخواست رد می‌شود.",
+                        params: [
+                            ["chat_id", "number", true, "شناسهٔ کاربر خریدار."],
+                            ["username", "string", true, "نام کاربری سرویس. به حروف کوچک تبدیل می‌شود."],
+                            ["code_product", "string", true, "کد محصول، یا مقدار customvolume برای سرویس دلخواه."],
+                            ["location_code", "string", true, "کد پنل مقصد."],
+                            ["time_service", "number", false, "مدت به روز. فقط با customvolume الزامی است."],
+                            ["volume_service", "number", false, "حجم به گیگابایت. فقط با customvolume الزامی است."]
+                        ],
+                        body: { actions: "invoice_add", chat_id: 123456789, username: "user_x1", code_product: "a1b2c3", location_code: "7e15" }
+                    },
+                    {
+                        name: "extend_service_admin", method: "POST",
+                        desc: "تمدید سرویس با حجم و زمان دلخواه بدون کسر از موجودی کاربر. نتیجه در سرویس‌های جانبی ثبت و وضعیت فاکتور فعال می‌شود.",
+                        params: [
+                            ["id_invoice", "string", true, "شناسهٔ فاکتور."],
+                            ["volume_service", "number", true, "حجم افزوده به گیگابایت. ۰ یا بیشتر."],
+                            ["time_service", "number", true, "روزهای افزوده. ۰ یا بیشتر."]
+                        ],
+                        body: { actions: "extend_service_admin", id_invoice: "a1b2c3d4", volume_service: 30, time_service: 30 }
+                    },
+                    {
+                        name: "change_status_config", method: "POST",
+                        desc: "فعال یا غیرفعال کردن کانفیگ روی پنل. سرویس‌هایی که در وضعیت on_hold هستند یا روی پنل پیدا نمی‌شوند قابل تغییر نیستند.",
+                        params: [["id_invoice", "string", true, "شناسهٔ فاکتور."]],
+                        body: { actions: "change_status_config", id_invoice: "a1b2c3d4" }
+                    },
+                    {
+                        name: "remove_service", method: "POST",
+                        desc: "حذف سرویس با سه حالت مختلف. در حالت tow مبلغ تعیین‌شده به کیف پول کاربر برمی‌گردد و در حالت three فقط رکورد فاکتور از پایگاه داده پاک می‌شود.",
+                        params: [
+                            ["id_invoice", "string", true, "شناسهٔ فاکتور."],
+                            ["type", "string", true, "one حذف از پنل، tow حذف با بازگشت وجه، three حذف رکورد فاکتور."],
+                            ["amount", "number", false, "مبلغ بازگشتی. فقط با type=tow الزامی است."]
+                        ],
+                        body: { actions: "remove_service", id_invoice: "a1b2c3d4", type: "tow", amount: 50000 }
+                    }
+                ]
+            },
+
+            {
+                id: "payment", path: "/payment", title: "پرداخت‌ها",
+                desc: "گزارش تراکنش‌های شارژ کیف پول.",
+                ops: [
+                    {
+                        name: "payments", method: "GET",
+                        desc: "فهرست پرداخت‌ها، جدیدترین اول. جستجو روی شناسهٔ کاربر و شمارهٔ سفارش انجام می‌شود.",
+                        params: [
+                            ["limit", "number", false, "تعداد در صفحه، ۱ تا ۱۰۰۰. پیش‌فرض ۵۰."],
+                            ["page", "number", false, "شمارهٔ صفحه. پیش‌فرض ۱."],
+                            ["q", "string", false, "جستجو در id_user و id_order."]
+                        ],
+                        body: { actions: "payments", limit: 20, page: 1 }
+                    },
+                    {
+                        name: "payment", method: "GET",
+                        desc: "جزئیات کامل یک تراکنش.",
+                        params: [["id_order", "string", true, "شمارهٔ سفارش پرداخت."]],
+                        body: { actions: "payment", id_order: "0123456789" }
+                    }
+                ]
+            },
+
+            {
+                id: "product", path: "/product", title: "محصولات",
+                desc: "پلن‌های فروش: قیمت، حجم، مدت، لوکیشن و اینباند.",
+                ops: [
+                    {
+                        name: "products", method: "GET",
+                        desc: "فهرست محصولات همراه با پنل‌های فعال و دسته‌بندی‌ها برای پر کردن فرم‌ها.",
+                        params: [
+                            ["limit", "number", false, "تعداد در صفحه، ۱ تا ۱۰۰۰. پیش‌فرض ۵۰."],
+                            ["page", "number", false, "شمارهٔ صفحه. پیش‌فرض ۱."],
+                            ["q", "string", false, "جستجو در شناسه و نام محصول."]
+                        ],
+                        body: { actions: "products", limit: 20 }
+                    },
+                    {
+                        name: "product", method: "GET",
+                        desc: "جزئیات یک محصول همراه با تعداد و جمع مبلغ فاکتورهای صادرشده برای آن.",
+                        params: [["id", "number", true, "شناسهٔ عددی محصول."]],
+                        body: { actions: "product", id: 1 }
+                    },
+                    {
+                        name: "product_add", method: "POST",
+                        desc: "ساخت محصول تازه. کد محصول به‌صورت خودکار تولید می‌شود و لوکیشن با نام پنل ذخیره می‌گردد.",
+                        params: [
+                            ["name", "string", true, "نام محصول. باید یکتا باشد."],
+                            ["location", "string", true, "کد پنل، یا مقدار /all برای همهٔ پنل‌ها."],
+                            ["price", "number", true, "قیمت. عدد صحیح ۰ یا بیشتر."],
+                            ["data_limit", "number", true, "حجم به گیگابایت. مقدار ۰ یعنی نامحدود."],
+                            ["time", "number", true, "مدت به روز. مقدار ۰ یعنی نامحدود."],
+                            ["agent", "string", false, "نقش مجاز برای خرید. پیش‌فرض f."],
+                            ["note", "string", false, "توضیح کوتاه محصول."],
+                            ["category", "string", false, "عنوان دسته‌بندی."],
+                            ["data_limit_reset", "string", false, "سیاست ریست حجم. پیش‌فرض no_reset."],
+                            ["one_buy_status", "number", false, "مقدار ۱ یعنی فقط یک‌بار قابل خرید است."],
+                            ["hide_panel", "string", false, "JSON آرایهٔ نام پنل‌هایی که محصول در آن‌ها پنهان است."]
+                        ],
+                        body: { actions: "product_add", name: "پلن ۳۰ گیگ", location: "7e15", price: 150000, data_limit: 30, time: 30 }
+                    },
+                    {
+                        name: "product_edit", method: "POST",
+                        desc: "ویرایش محصول. فقط فیلدهای ارسال‌شده تغییر می‌کنند. تغییر نام، نام محصول را در فاکتورهای قبلی هم به‌روز می‌کند.",
+                        params: [
+                            ["id", "number", true, "شناسهٔ عددی محصول."],
+                            ["name", "string", false, "نام تازه. باید یکتا باشد."],
+                            ["price", "number", false, "قیمت."],
+                            ["volume", "number", false, "حجم به گیگابایت. نام data_limit هم پذیرفته می‌شود."],
+                            ["time", "number", false, "مدت به روز."],
+                            ["location", "string", false, "کد پنل تازه یا /all."],
+                            ["agent", "string", false, "نقش مجاز برای خرید."],
+                            ["note", "string", false, "توضیح محصول."],
+                            ["category", "string", false, "عنوان دسته‌بندی."],
+                            ["one_buy_status", "number", false, "محدودیت خرید یک‌باره."],
+                            ["hide_panel", "array", false, "آرایهٔ نام پنل‌های پنهان."]
+                        ],
+                        body: { actions: "product_edit", id: 1, price: 180000, volume: 40 }
+                    },
+                    {
+                        name: "product_delete", method: "POST",
+                        desc: "حذف محصول. فاکتورهای صادرشده دست‌نخورده می‌مانند.",
+                        params: [["id", "number", true, "شناسهٔ عددی محصول."]],
+                        body: { actions: "product_delete", id: 1 }
+                    },
+                    {
+                        name: "set_inbounds", method: "POST",
+                        desc: "کپی کردن اینباند و پروتکل‌ها از یک کاربر نمونه روی پنل به محصول. ساختار خروجی بسته به نوع پنل فرق دارد و اطلاعات حساس مثل رمز و کلید خصوصی حذف می‌شود.",
+                        params: [
+                            ["id", "number", true, "شناسهٔ عددی محصول."],
+                            ["input", "string", true, "نام کاربری نمونه روی پنل. برای پنل‌های ibsng و mikrotik مقدار مستقیماً ذخیره می‌شود."]
+                        ],
+                        body: { actions: "set_inbounds", id: 1, input: "sample_user" }
+                    },
+                    {
+                        name: "remove_inbounds", method: "POST",
+                        desc: "پاک کردن اینباند و پروتکل‌های ذخیره‌شدهٔ محصول.",
+                        params: [["id", "number", true, "شناسهٔ عددی محصول."]],
+                        body: { actions: "remove_inbounds", id: 1 }
+                    }
+                ]
+            },
+
+            {
+                id: "panels", path: "/panels", title: "پنل‌ها",
+                desc: "پنل‌های فروش متصل به ربات: مرزبان، مرزنشین، سنایی، x-ui و بقیه.",
+                note: "در پاسخ اکشن‌های خواندنی، فیلدهای password_panel، secret_code و datelogin حذف می‌شوند. در panel_edit هم اگر این فیلدها خالی بفرستید نادیده گرفته می‌شوند تا مقدار فعلی پاک نشود.",
+                ops: [
+                    {
+                        name: "panels", method: "GET",
+                        desc: "فهرست پنل‌ها با تمام تنظیمات، بدون اطلاعات ورود.",
+                        params: [
+                            ["limit", "number", false, "تعداد در صفحه، ۱ تا ۱۰۰۰. پیش‌فرض ۵۰."],
+                            ["page", "number", false, "شمارهٔ صفحه. پیش‌فرض ۱."],
+                            ["q", "string", false, "جستجو در نام پنل."]
+                        ],
+                        body: { actions: "panels", limit: 20 }
+                    },
+                    {
+                        name: "panel", method: "GET",
+                        desc: "جزئیات یک پنل. ستون‌های JSON مثل قیمت‌های سفارشی و سقف‌ها به شیء تبدیل شده برمی‌گردند.",
+                        params: [["id", "number", true, "شناسهٔ عددی پنل."]],
+                        body: { actions: "panel", id: 1 }
+                    },
+                    {
+                        name: "panel_add", method: "POST",
+                        desc: "افزودن پنل تازه. کد پنل خودکار ساخته می‌شود و ستون‌های قیمت و سقف با مقادیر پیش‌فرض هر نقش پر می‌شوند.",
+                        params: [
+                            ["name", "string", true, "نام پنل. باید یکتا باشد."],
+                            ["url", "string", true, "آدرس کامل پنل با پروتکل و پورت."],
+                            ["username_panel", "string", true, "نام کاربری ادمین پنل."],
+                            ["password_panel", "string", true, "رمز ادمین پنل."],
+                            ["type", "string", false, "نوع پنل. پیش‌فرض marzban."],
+                            ["version_panel", "string", false, "مقدار \"1\" برای مرزبان نسخهٔ جدید."],
+                            ["status", "string", false, "active یا disable. پیش‌فرض active."],
+                            ["agent", "string", false, "نقش‌های مجاز. پیش‌فرض all."],
+                            ["sublink", "string", false, "onsublink یا offsublink. پیش‌فرض onsublink."],
+                            ["config", "string", false, "onconfig یا offconfig. پیش‌فرض offconfig."],
+                            ["inboundid", "string", false, "شناسهٔ اینباند پیش‌فرض."],
+                            ["namecustom", "string", false, "پیشوند نام کاربری تولیدی. پیش‌فرض vpn."],
+                            ["time_usertest", "string", false, "مدت اکانت تست به روز. پیش‌فرض ۱."],
+                            ["val_usertest", "string", false, "حجم اکانت تست. پیش‌فرض ۱۰۰."]
+                        ],
+                        body: { actions: "panel_add", name: "Germany", url: "https://panel.example.com:8000", username_panel: "admin", password_panel: "secret", type: "marzban" }
+                    },
+                    {
+                        name: "panel_edit", method: "POST",
+                        desc: "ویرایش پنل. فقط فیلدهای ارسال‌شده تغییر می‌کنند. تغییر نام، لوکیشن فاکتورهای قبلی را هم به‌روز می‌کند و تغییر آدرس یا اطلاعات ورود، نشست ذخیره‌شدهٔ پنل را باطل می‌کند.",
+                        params: [
+                            ["id", "number", true, "شناسهٔ عددی پنل."],
+                            ["name", "string", false, "نام تازه. باید یکتا باشد."],
+                            ["url", "string", false, "آدرس تازهٔ پنل."],
+                            ["username_panel", "string", false, "نام کاربری ادمین."],
+                            ["password_panel", "string", false, "رمز ادمین. مقدار خالی نادیده گرفته می‌شود."],
+                            ["status", "string", false, "active یا disable."],
+                            ["agent", "string", false, "نقش‌های مجاز."],
+                            ["sublink", "string", false, "onsublink یا offsublink."],
+                            ["config", "string", false, "onconfig یا offconfig."],
+                            ["pricecustomvolume", "object", false, "قیمت هر گیگ به تفکیک نقش: {\"f\":…,\"n\":…,\"n2\":…}"],
+                            ["pricecustomtime", "object", false, "قیمت هر روز به تفکیک نقش."],
+                            ["mainvolume", "object", false, "حداقل حجم مجاز به تفکیک نقش."],
+                            ["maxvolume", "object", false, "حداکثر حجم مجاز به تفکیک نقش."],
+                            ["maintime", "object", false, "حداقل مدت مجاز به تفکیک نقش."],
+                            ["maxtime", "object", false, "حداکثر مدت مجاز به تفکیک نقش."],
+                            ["customvolume", "object", false, "فعال بودن خرید حجمی سفارشی به تفکیک نقش."],
+                            ["hide_user", "array", false, "شناسهٔ کاربرانی که پنل برایشان پنهان است."]
+                        ],
+                        body: { actions: "panel_edit", id: 1, status: "disable", maxvolume: { f: "200", n: "500", n2: "1000" } }
+                    },
+                    {
+                        name: "panel_delete", method: "POST",
+                        desc: "حذف پنل از پایگاه داده. سرویس‌های ساخته‌شده روی خود پنل حذف نمی‌شوند.",
+                        params: [["id", "number", true, "شناسهٔ عددی پنل."]],
+                        body: { actions: "panel_delete", id: 1 }
+                    },
+                    {
+                        name: "set_inbounds", method: "POST",
+                        desc: "خواندن اینباند و پروتکل‌ها از یک کاربر نمونه روی پنل و ذخیرهٔ آن به‌عنوان تنظیمات پیش‌فرض پنل.",
+                        params: [
+                            ["id", "number", true, "شناسهٔ عددی پنل."],
+                            ["input", "string", true, "نام کاربری نمونه روی پنل."]
+                        ],
+                        body: { actions: "set_inbounds", id: 1, input: "sample_user" }
+                    },
+                    {
+                        name: "remove_inbounds", method: "POST",
+                        desc: "پاک کردن اینباند و پروتکل‌های ذخیره‌شدهٔ پنل.",
+                        params: [["id", "number", true, "شناسهٔ عددی پنل."]],
+                        body: { actions: "remove_inbounds", id: 1 }
+                    }
+                ]
+            },
+
+            {
+                id: "category", path: "/category", title: "دسته‌بندی‌ها",
+                desc: "دسته‌بندی محصولات برای نمایش گروهی در ربات.",
+                ops: [
+                    {
+                        name: "categorys", method: "GET",
+                        desc: "فهرست دسته‌بندی‌ها.",
+                        params: [
+                            ["limit", "number", false, "تعداد در صفحه، ۱ تا ۱۰۰۰. پیش‌فرض ۵۰."],
+                            ["page", "number", false, "شمارهٔ صفحه. پیش‌فرض ۱."],
+                            ["q", "string", false, "جستجو در عنوان دسته."]
+                        ],
+                        body: { actions: "categorys", limit: 20 }
+                    },
+                    {
+                        name: "category", method: "GET",
+                        desc: "جزئیات یک دسته‌بندی.",
+                        params: [["id", "number", true, "شناسهٔ عددی دسته."]],
+                        body: { actions: "category", id: 1 }
+                    },
+                    {
+                        name: "category_add", method: "POST",
+                        desc: "ساخت دسته‌بندی تازه.",
+                        params: [["remark", "string", true, "عنوان دسته."]],
+                        body: { actions: "category_add", remark: "پلن‌های اقتصادی" }
+                    },
+                    {
+                        name: "category_edit", method: "POST",
+                        desc: "تغییر عنوان دسته‌بندی.",
+                        params: [
+                            ["id", "number", true, "شناسهٔ عددی دسته."],
+                            ["remark", "string", false, "عنوان تازه."]
+                        ],
+                        body: { actions: "category_edit", id: 1, remark: "پلن‌های ویژه" }
+                    },
+                    {
+                        name: "category_delete", method: "POST",
+                        desc: "حذف دسته‌بندی. محصولات این دسته حذف نمی‌شوند.",
+                        params: [["id", "number", true, "شناسهٔ عددی دسته."]],
+                        body: { actions: "category_delete", id: 1 }
+                    }
+                ]
+            },
+
+            {
+                id: "discount", path: "/discount", title: "کدهای تخفیف",
+                desc: "دو نوع کد: کد شارژ کیف پول با مبلغ ثابت و کد تخفیف درصدی روی خرید.",
+                ops: [
+                    {
+                        name: "discounts", method: "GET",
+                        desc: "فهرست کدهای شارژ کیف پول.",
+                        params: [
+                            ["limit", "number", false, "تعداد در صفحه، ۱ تا ۱۰۰۰. پیش‌فرض ۵۰."],
+                            ["page", "number", false, "شمارهٔ صفحه. پیش‌فرض ۱."],
+                            ["q", "string", false, "جستجو در کد."]
+                        ],
+                        body: { actions: "discounts", limit: 20 }
+                    },
+                    {
+                        name: "discount", method: "GET",
+                        desc: "جزئیات یک کد شارژ.",
+                        params: [["id", "number", true, "شناسهٔ عددی کد."]],
+                        body: { actions: "discount", id: 1 }
+                    },
+                    {
+                        name: "discount_add", method: "POST",
+                        desc: "ساخت کد شارژ کیف پول. کد باید یکتا و فقط شامل حروف انگلیسی و رقم باشد.",
+                        params: [
+                            ["code", "string", true, "کد. فقط A-Z، a-z و ۰-۹."],
+                            ["price", "number", true, "مبلغ شارژ. عدد صحیح ۰ یا بیشتر."],
+                            ["limit_use", "number", true, "سقف دفعات استفاده. عدد صحیح ۰ یا بیشتر."]
+                        ],
+                        body: { actions: "discount_add", code: "WELCOME50", price: 50000, limit_use: 100 }
+                    },
+                    {
+                        name: "discount_delete", method: "POST",
+                        desc: "حذف کد شارژ.",
+                        params: [["id", "number", true, "شناسهٔ عددی کد."]],
+                        body: { actions: "discount_delete", id: 1 }
+                    },
+                    {
+                        name: "discount_sell_lists", method: "GET",
+                        desc: "فهرست کدهای تخفیف خرید، همراه با محصولات و پنل‌های فعال برای پر کردن فرم‌ها.",
+                        params: [
+                            ["limit", "number", false, "تعداد در صفحه، ۱ تا ۱۰۰۰. پیش‌فرض ۵۰."],
+                            ["page", "number", false, "شمارهٔ صفحه. پیش‌فرض ۱."],
+                            ["q", "string", false, "جستجو در کد تخفیف."]
+                        ],
+                        body: { actions: "discount_sell_lists", limit: 20 }
+                    },
+                    {
+                        name: "discount_sell", method: "GET",
+                        desc: "جزئیات یک کد تخفیف خرید. کد محصول و کد پنل به نام خوانا تبدیل می‌شوند.",
+                        params: [["id", "number", true, "شناسهٔ عددی کد تخفیف."]],
+                        body: { actions: "discount_sell", id: 1 }
+                    },
+                    {
+                        name: "discount_sell_add", method: "POST",
+                        desc: "ساخت کد تخفیف درصدی. می‌توان آن را به یک محصول، یک پنل یا یک نقش خاص محدود کرد.",
+                        params: [
+                            ["code", "string", true, "کد. فقط A-Z، a-z و ۰-۹."],
+                            ["percent", "number", true, "درصد تخفیف بین ۰ تا ۱۰۰."],
+                            ["limit_use", "number", true, "سقف دفعات استفاده. عدد صحیح ۰ یا بیشتر."],
+                            ["agent", "string", false, "نقش مجاز. پیش‌فرض allusers."],
+                            ["usefirst", "string", false, "مقدار \"1\" یعنی فقط برای اولین خرید."],
+                            ["useuser", "string", false, "محدود کردن کد به یک شناسهٔ کاربر."],
+                            ["code_product", "string", false, "کد محصول. پیش‌فرض all."],
+                            ["code_panel", "string", false, "کد پنل. پیش‌فرض /all."],
+                            ["time", "string", false, "تاریخ انقضای کد."],
+                            ["type", "string", false, "نوع کاربرد کد. پیش‌فرض all."]
+                        ],
+                        body: { actions: "discount_sell_add", code: "OFF20", percent: 20, limit_use: 50, code_panel: "/all" }
+                    },
+                    {
+                        name: "discount_sell_delete", method: "POST",
+                        desc: "حذف کد تخفیف خرید.",
+                        params: [["id", "number", true, "شناسهٔ عددی کد تخفیف."]],
+                        body: { actions: "discount_sell_delete", id: 1 }
+                    }
+                ]
+            },
+
+            {
+                id: "settings", path: "/settings", title: "تنظیمات",
+                desc: "تنظیمات عمومی ربات، تنظیمات فروشگاه و چیدمان کیبورد اصلی.",
+                ops: [
+                    {
+                        name: "setting_info", method: "GET",
+                        desc: "خواندن همهٔ تنظیمات. خروجی دو بخش دارد: setting_shop از جدول فروشگاه و setting_General از تنظیمات عمومی.",
+                        params: [],
+                        body: { actions: "setting_info" }
+                    },
+                    {
+                        name: "save_setting_shop", method: "POST",
+                        desc: "ذخیرهٔ گروهی تنظیمات. هر عضو آرایه یک تنظیم است؛ با type=shop در جدول فروشگاه و در غیر این صورت در تنظیمات عمومی نوشته می‌شود.",
+                        params: [
+                            ["data", "array", true, "آرایه‌ای از اشیاء تنظیم."],
+                            ["data[].name_value", "string", true, "نام تنظیم یا ستون مقصد."],
+                            ["data[].value", "any", true, "مقدار تنظیم."],
+                            ["data[].type", "string", false, "مقدار shop برای تنظیمات فروشگاه."],
+                            ["data[].json", "boolean", false, "اگر true باشد مقدار پیش از ذخیره به JSON تبدیل می‌شود."]
+                        ],
+                        body: { actions: "save_setting_shop", data: [{ name_value: "support_username", value: "@support", type: "general" }] }
+                    },
+                    {
+                        name: "keyboard_set", method: "POST",
+                        desc: "تغییر چیدمان کیبورد اصلی ربات. با ارسال keyboard_reset چیدمان به حالت پیش‌فرض برمی‌گردد.",
+                        params: [
+                            ["keyboard", "array", false, "آرایهٔ ردیف‌ها؛ هر ردیف آرایه‌ای از {\"text\":…} است. بدون keyboard_reset الزامی است."],
+                            ["keyboard_reset", "boolean", false, "با مقدار true چیدمان پیش‌فرض بازگردانده می‌شود و بقیهٔ فیلدها نادیده گرفته می‌شوند."]
+                        ],
+                        body: { actions: "keyboard_set", keyboard: [[{ text: "text_sell" }, { text: "text_extend" }], [{ text: "text_support" }]] }
+                    }
+                ]
+            },
+
+            {
+                id: "service", path: "/service", title: "سرویس‌های جانبی",
+                desc: "گزارش خام سرویس‌های جانبی خریداری‌شده.",
+                ops: [
+                    {
+                        name: "services", method: "GET",
+                        desc: "فهرست سرویس‌های جانبی. بدون ارسال limit همهٔ رکوردها برمی‌گردند. پاسخ در obj یک آرایهٔ ساده است و صفحه‌بندی ندارد.",
+                        params: [["limit", "number", false, "سقف تعداد رکورد، حداکثر ۱۰۰۰. بدون این پارامتر محدودیتی اعمال نمی‌شود."]],
+                        body: { actions: "services", limit: 100 }
+                    }
+                ]
+            },
+
+            {
+                id: "reports", path: "/statbot", title: "آمار و کیبورد",
+                desc: "سه اندپوینت ساده که پارامتر actions نمی‌گیرند و پاسخشان در پوشش استاندارد قرار ندارد.",
+                simple: true,
+                ops: [
+                    {
+                        name: "/statbot", method: "GET", raw: true,
+                        desc: "شمارش کلی کاربران، فاکتورها و نمایندگان.",
+                        params: [],
+                        returns: { count_user: 1240, count_invoice: 3810, count_agent: 27 }
+                    },
+                    {
+                        name: "/log", method: "GET", raw: true,
+                        desc: "همان خروجی statbot. برای سازگاری با نسخه‌های قدیمی نگه داشته شده است.",
+                        params: [],
+                        returns: { count_user: 1240, count_invoice: 3810, count_agent: 27 }
+                    },
+                    {
+                        name: "/keyboard", method: "GET", raw: true,
+                        desc: "چیدمان فعلی کیبورد اصلی به‌همراه دکمه‌های استفاده‌نشده و برچسب فارسی هر دکمه. برای ساخت رابط چینش کیبورد به کار می‌رود.",
+                        params: [],
+                        returns: {
+                            keylist: [[{ text: "text_wheel_luck" }]],
+                            userlist: [[{ text: "text_sell" }, { text: "text_extend" }]],
+                            text: { text_sell: "🛒 خرید سرویس", text_extend: "♻️ تمدید سرویس" }
+                        }
+                    }
+                ]
+            }
+        ];
+
+        /* ---------------- rendering ---------------- */
+        const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+        function highlightJson(src) {
+            return esc(src).replace(
+                /(&quot;(?:[^&]|&(?!quot;))*&quot;)(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?)|([{}\[\],])/g,
+                (m, str, colon, lit, num, punc) => {
+                    if (str) return colon
+                        ? `<span class="t-key">${str}</span><span class="t-punc">${colon}</span>`
+                        : `<span class="t-str">${str}</span>`;
+                    if (lit) return `<span class="t-lit">${lit}</span>`;
+                    if (num) return `<span class="t-num">${num}</span>`;
+                    return `<span class="t-punc">${punc}</span>`;
+                }
+            );
+        }
+
+        function highlightShell(src) {
+            return esc(src)
+                .replace(/^curl/, '<span class="t-cmd">curl</span>')
+                .replace(/(\s)(-[A-Za-z-]+)/g, '$1<span class="t-flag">$2</span>')
+                .replace(/(&quot;(?:[^&]|&(?!quot;))*&quot;|'[^']*')/g, '<span class="t-str">$1</span>');
+        }
+
+        function paint(pre) {
+            const src = pre.dataset.src;
+            pre.innerHTML = pre.dataset.lang === "shell" ? highlightShell(src) : highlightJson(src);
+        }
+
+        function snippet(label, lang, src) {
+            return `<div class="snippet" data-snippet>
+        <div class="snippet__bar"><span class="snippet__label">${esc(label)}</span>
+          <button class="copy" type="button">کپی</button></div>
+        <pre data-lang="${lang}" data-src="${esc(src)}"></pre>
+      </div>`;
+        }
+
+        function paramTable(params) {
+            if (!params.length) return '<p class="op__desc">این اکشن پارامتری جز <code>actions</code> نمی‌گیرد.</p>';
+            const rows = params.map(([n, t, req, d]) => `<tr>
+        <td class="p-name">${esc(n)}</td>
+        <td class="p-type">${esc(t)}</td>
+        <td class="p-req">${req ? '<span class="req-yes">الزامی</span>' : '<span class="req-no">اختیاری</span>'}</td>
+        <td>${esc(d)}</td></tr>`).join("");
+            return `<div class="tablewrap"><table>
+        <thead><tr><th>پارامتر</th><th>نوع</th><th>وضعیت</th><th>توضیح</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+        }
+
+        const groupsEl = document.getElementById("groups");
+        const navEl = document.getElementById("nav");
+
+        GROUPS.forEach((g) => {
+            const section = document.createElement("section");
+            section.className = "block";
+            section.id = g.id;
+
+            const curl = g.simple
+                ? ""
+                : `<div class="card"><h3>فراخوانی نمونه</h3>` +
+                snippet("curl", "shell",
+                    `curl -X ${g.ops[0].method} "{BASE}${g.path}" \\\n` +
+                    `  -H "Token: YOUR_TOKEN" \\\n` +
+                    `  -H "Content-Type: application/json" \\\n` +
+                    `  -d '${JSON.stringify(g.ops[0].body)}'`) +
+                `</div>`;
+
+            const note = g.note ? `<div class="note"><p>${esc(g.note)}</p></div>` : "";
+
+            const ops = g.ops.map((op) => {
+                const id = `${g.id}-${op.name.replace(/^\//, "")}`;
+                const sample = op.raw
+                    ? snippet("پاسخ ۲۰۰", "json", JSON.stringify(op.returns, null, 2))
+                    : snippet("بدنهٔ درخواست", "json", JSON.stringify(op.body, null, 2));
+                return `<article class="op" id="${id}" data-op="${esc(op.name)} ${esc(op.desc)}">
+          <div class="op__head">
+            <span class="chip chip--${op.method.toLowerCase()}">${op.method}</span>
+            <h3 class="op__name">${esc(op.name)}</h3>
+            <a class="op__anchor" href="#${id}" aria-label="پیوند مستقیم به ${esc(op.name)}">#</a>
+          </div>
+          <div class="op__body">
+            <p class="op__desc">${esc(op.desc)}</p>
+            ${paramTable(op.params)}
+            ${sample}
+          </div>
+        </article>`;
+            }).join("");
+
+            section.innerHTML = `<div class="block__head">
+          <h2>${esc(g.title)}</h2>
+          <p>${esc(g.desc)}</p>
+          ${g.simple ? "" : `<span class="block__path" dir="ltr">{BASE}${esc(g.path)}</span>`}
+        </div>${note}${curl}${ops}`;
+            groupsEl.appendChild(section);
+
+            const nav = document.createElement("div");
+            nav.className = "navgroup";
+            nav.innerHTML = `<h4 class="navgroup__title">${esc(g.title)}
+          <span class="navgroup__count num">${g.ops.length}</span></h4>
+        <ul>${g.ops.map((op) => {
+                const id = `${g.id}-${op.name.replace(/^\//, "")}`;
+                return `<li data-op="${esc(op.name)} ${esc(op.desc)}"><a href="#${id}">${esc(op.name)}</a></li>`;
+            }).join("")}</ul>`;
+            navEl.appendChild(nav);
+        });
+
+        /* ---------------- base URL ---------------- */
+        const baseInput = document.getElementById("baseInput");
+
+        function applyBase() {
+            const base = baseInput.value.replace(/\/+$/, "") || "https://example.com/api";
+            document.querySelectorAll("[data-base-text]").forEach((el) => { el.textContent = base; });
+            document.querySelectorAll(".block__path").forEach((el) => {
+                if (!el.dataset.tpl) el.dataset.tpl = el.textContent;
+                el.textContent = el.dataset.tpl.replace("{BASE}", base);
+            });
+            document.querySelectorAll("pre[data-src]").forEach((pre) => {
+                if (!pre.dataset.tpl) pre.dataset.tpl = pre.dataset.src;
+                pre.dataset.src = pre.dataset.tpl.split("{BASE}").join(base);
+                paint(pre);
+            });
+        }
+        baseInput.addEventListener("input", applyBase);
+        applyBase();
+
+        /* Sections are built after load, so the browser has already given up on
+           the hash by now; jump to it once the target exists. */
+        if (location.hash.length > 1) {
+            const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+            if (target) target.scrollIntoView({ behavior: "instant", block: "start" });
+        }
+
+        /* ---------------- copy ---------------- */
+        document.addEventListener("click", (e) => {
+            const btn = e.target.closest(".copy");
+            if (!btn) return;
+            const pre = btn.closest("[data-snippet]").querySelector("pre");
+            navigator.clipboard.writeText(pre.dataset.src).then(() => {
+                btn.textContent = "کپی شد";
+                btn.classList.add("is-done");
+                setTimeout(() => { btn.textContent = "کپی"; btn.classList.remove("is-done"); }, 1600);
+            });
+        });
+
+        /* ---------------- filter ---------------- */
+        const filterInput = document.getElementById("filterInput");
+        const navEmpty = document.getElementById("navEmpty");
+
+        filterInput.addEventListener("input", () => {
+            const q = filterInput.value.trim().toLowerCase();
+            let visible = 0;
+
+            document.querySelectorAll(".navgroup").forEach((grp) => {
+                let shown = 0;
+                grp.querySelectorAll("li").forEach((li) => {
+                    const hit = !q || li.dataset.op.toLowerCase().includes(q);
+                    li.hidden = !hit;
+                    if (hit) shown++;
+                });
+                grp.hidden = shown === 0;
+                visible += shown;
+            });
+
+            document.querySelectorAll(".op").forEach((op) => {
+                op.hidden = q ? !op.dataset.op.toLowerCase().includes(q) : false;
+            });
+            document.querySelectorAll("#groups .block").forEach((sec) => {
+                sec.hidden = q ? sec.querySelectorAll(".op:not([hidden])").length === 0 : false;
+            });
+
+            navEmpty.style.display = visible === 0 ? "block" : "none";
+        });
+
+        /* ---------------- scrollspy ---------------- */
+        const links = new Map();
+        document.querySelectorAll(".navgroup a").forEach((a) => links.set(a.getAttribute("href").slice(1), a));
+
+        const spy = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                const a = links.get(entry.target.id);
+                if (!a) return;
+                if (entry.isIntersecting) {
+                    links.forEach((l) => l.classList.remove("is-active"));
+                    a.classList.add("is-active");
+                }
+            });
+        }, { rootMargin: "-80px 0px -70% 0px" });
+        document.querySelectorAll(".op").forEach((op) => spy.observe(op));
+
+        /* ---------------- theme ---------------- */
+        const themeBtn = document.getElementById("themeBtn");
+        const stored = localStorage.getItem("zorvex-docs-theme");
+        if (stored) document.documentElement.dataset.theme = stored;
+
+        themeBtn.addEventListener("click", () => {
+            const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
+            const current = document.documentElement.dataset.theme || (prefersDark ? "dark" : "light");
+            const next = current === "dark" ? "light" : "dark";
+            document.documentElement.dataset.theme = next;
+            localStorage.setItem("zorvex-docs-theme", next);
+        });
+    </script>
+</body>
+
+</html>

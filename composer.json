@@ -1,22 +1,21 @@
 {
-    "name": "zorvex/platform",
-    "description": "Zorvex - Next-Generation Enterprise Telegram VPN Sales, Management & Subscription Platform",
+    "name": "zorvexpro/zorvex",
+    "description": "Zorvex Bot - Telegram VPN sales and management bot",
     "type": "project",
-    "license": "MIT",
+    "license": "AGPL-3.0-or-later",
+    "homepage": "https://github.com/T3chHash/zorvex",
     "require": {
-        "php": ">=8.2"
-    },
-    "autoload": {
-        "psr-4": {
-            "Zorvex\\": "app/"
-        },
-        "files": [
-            "app/Helpers/jdf.php",
-            "app/Helpers/functions.php"
-        ]
+        "php": ">=8.2",
+        "endroid/qr-code": "^6.0",
+        "phpoffice/phpspreadsheet": "^5.8"
     },
     "config": {
         "optimize-autoloader": true,
-        "sort-packages": true
-    }
+        "sort-packages": true,
+        "platform": {
+            "php": "8.2.0"
+        }
+    },
+    "prefer-stable": true,
+    "minimum-stability": "stable"
 }
