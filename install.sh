@@ -775,35 +775,30 @@ get_active_config_file() {
     echo "$CONFIG_FILE_DEFAULT"
 }
 
-# Get latest version (newest git tag or raw version file) from GitHub, cached for 60 seconds
+# Get latest version (newest git tag or raw version file) from GitHub
 get_latest_version() {
-    if [ -f "$LATEST_CACHE" ] && [ $(( $(date +%s) - $(stat -c %Y "$LATEST_CACHE" 2>/dev/null || echo 0) )) -lt 60 ]; then
-        cat "$LATEST_CACHE"
-        return
-    fi
     local tags v=""
-    # 1. Fetch raw version file directly (Fast, reliable, NO GitHub API rate limit)
-    v=$(curl -fsSL --max-time 5 -H "Cache-Control: no-cache" "https://raw.githubusercontent.com/${GIT_REPO}/main/version?t=$(date +%s)" 2>/dev/null | tr -d ' \t\r\n')
-
-    # 2. If empty, try GitHub tags API
-    if [ -z "$v" ]; then
-        tags=$(curl -fsSL --max-time 6 -H "Cache-Control: no-cache" "https://api.github.com/repos/${GIT_REPO}/tags?t=$(date +%s)" 2>/dev/null)
-        if [ -n "$tags" ]; then
-            if command -v jq >/dev/null 2>&1; then
-                v=$(echo "$tags" | jq -r '.[].name' 2>/dev/null | sort -V | tail -1)
-            else
-                v=$(echo "$tags" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)".*/\1/' | sort -V | tail -1)
-            fi
+    # 1. Try GitHub tags API first (instant real-time tag release)
+    tags=$(curl -fsSL --max-time 6 -H "Cache-Control: no-cache" "https://api.github.com/repos/${GIT_REPO}/tags?t=$(date +%s)" 2>/dev/null)
+    if [ -n "$tags" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            v=$(echo "$tags" | jq -r '.[].name' 2>/dev/null | grep -E '^[0-9]' | sort -V | tail -1)
+        else
+            v=$(echo "$tags" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)".*/\1/' | grep -E '^[0-9]' | sort -V | tail -1)
         fi
     fi
 
-    # 3. If still empty, try git ls-remote
+    # 2. If empty or rate-limited, query git ls-remote directly (100% real-time, zero CDN delay)
     if [ -z "$v" ]; then
-        v=$(git ls-remote --tags --refs "https://github.com/${GIT_REPO}.git" 2>/dev/null | awk -F'/' '{print $NF}' | sort -V | tail -1)
+        v=$(git ls-remote --tags --refs "https://github.com/${GIT_REPO}.git" 2>/dev/null | awk -F'/' '{print $NF}' | grep -E '^[0-9]' | sort -V | tail -1)
+    fi
+
+    # 3. Fallback to raw version file directly
+    if [ -z "$v" ]; then
+        v=$(curl -fsSL --max-time 5 -H "Cache-Control: no-cache" "https://raw.githubusercontent.com/${GIT_REPO}/main/version?t=$(date +%s)" 2>/dev/null | tr -d ' \t\r\n')
     fi
 
     if [ -n "$v" ]; then
-        echo "$v" > "$LATEST_CACHE"
         echo "$v"
     fi
 }
