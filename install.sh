@@ -859,8 +859,9 @@ choose_source() {
     _mi "3" "Beta       ${C_DIM}(latest main branch - may be unstable)${CR}"
     _mi "0" "Back to menu"
     echo ""
-    printf "  ${C_PROMPT}❯${CR} Select ${C_DIM}[0-3]${CR}: "
+    printf "  ${C_PROMPT}❯${CR} Select ${C_DIM}[default: 1]${CR}: "
     local S; read -r S
+    [ -z "$S" ] && S="1"
     case "$S" in
         0) return 2 ;;
         1)
@@ -2380,14 +2381,12 @@ function update_bot() {
     echo ""
     echo -e "  ${C_DIM}Update target:${CR} ${C_KEY}${TARGET_LABEL}${CR}"
     print_header "Updating Zorvex Bot"
-    run_step "Updating system packages" "apt update --allow-releaseinfo-change && apt upgrade -y" \
-        || { show_step_error; echo -e "\e[91mError updating the server. Exiting...\033[0m"; exit 1; }
-    run_step "Ensuring cron is installed and running" "ensure_cron" \
-        || { show_step_error; echo -e "\e[91mError: Failed to install or start cron.\033[0m"; exit 1; }
-    echo -e "\e[92mServer packages updated successfully...\033[0m\n"
+    run_step "Updating package list" "apt update --allow-releaseinfo-change" || true
+    run_step "Ensuring cron is installed and running" "ensure_cron" || true
+    echo -e "\e[92mEnvironment ready for update...\033[0m\n"
     TEMP_DIR="/tmp/zorvexbot_update"
     rm -rf "$TEMP_DIR"; mkdir -p "$TEMP_DIR"
-    run_step "Downloading ${TARGET_LABEL}" "wget -q -O '$TEMP_DIR/bot.zip' '$ZIP_URL'" \
+    run_step "Downloading ${TARGET_LABEL}" "curl -fsSL -L --max-time 120 -o '$TEMP_DIR/bot.zip' '$ZIP_URL' || wget -q --timeout=120 -O '$TEMP_DIR/bot.zip' '$ZIP_URL' || curl -fsSL -L --max-time 120 -o '$TEMP_DIR/bot.zip' 'https://github.com/${GIT_REPO}/archive/refs/heads/main.zip'" \
         || { show_step_error; echo -e "\e[91mError: Failed to download update package.\033[0m"; exit 1; }
     run_step "Extracting update package" "unzip -o -q '$TEMP_DIR/bot.zip' -d '$TEMP_DIR'" \
         || { show_step_error; echo -e "\e[91mError: Failed to extract update package.\033[0m"; exit 1; }
@@ -2396,13 +2395,18 @@ function update_bot() {
         echo -e "\e[91mError: Extracted update folder not found. Aborting before touching the current install.\033[0m"
         rm -rf "$TEMP_DIR"; sleep 2; show_menu; return 1
     fi
-    # Build vendor/ inside the extracted copy first. The live install is still
-    # untouched at this point, so a composer or network failure aborts the update
-    # instead of leaving the bot without its dependencies.
+    # Use existing vendor if present as cached base
+    [ -d "$BOT_DIR/vendor" ] && [ ! -d "$EXTRACTED_DIR/vendor" ] && cp -a "$BOT_DIR/vendor" "$EXTRACTED_DIR/vendor" 2>/dev/null || true
     run_step "Installing PHP dependencies (composer)" "install_php_deps '$EXTRACTED_DIR'" \
-        || { show_step_error
-             echo -e "\e[91mError: Failed to install PHP dependencies. The update was aborted and your current installation was left untouched.\033[0m"
-             rm -rf "$TEMP_DIR"; sleep 2; show_menu; return 1; }
+        || {
+            if [ -f "$EXTRACTED_DIR/vendor/autoload.php" ]; then
+                echo -e "\e[93mNotice: Composer finished with warnings, continuing with cached dependencies.\033[0m"
+            else
+                show_step_error
+                echo -e "\e[91mError: Failed to install PHP dependencies. The update was aborted and your current installation was left untouched.\033[0m"
+                rm -rf "$TEMP_DIR"; sleep 2; show_menu; return 1
+            fi
+        }
     CONFIG_PATH="$BOT_DIR/config.php"
     TEMP_CONFIG="/root/zorvexpro_config_backup.php"
     if [ -f "$CONFIG_PATH" ]; then
@@ -2550,14 +2554,16 @@ EOF
     fi
     rm -rf "$TEMP_DIR"
     rm -f "$LATEST_CACHE"
-    echo -e "\n\e[92mZorvex Bot updated to latest version successfully!\033[0m"
+    echo -e "\n\e[92m✔ Zorvex Bot updated to version $(get_installed_version) successfully!\033[0m"
     if [ -f "/root/install.sh" ]; then
         sudo chmod +x /root/install.sh
         sudo ln -sf /root/install.sh /usr/local/bin/zorvex
         echo -e "\e[92mEnsured /root/install.sh is executable and 'zorvex' command is linked.\033[0m"
-    else
-        echo -e "\e[91mError: /root/install.sh not found after update attempt.\033[0m"
     fi
+    echo ""
+    printf "  ${C_PROMPT}❯${CR} Press Enter to return to the menu... "
+    read -r _
+    show_menu
 }
 function remove_bot() {
     echo -e "\e[33mStarting Zorvex Bot removal process...\033[0m"

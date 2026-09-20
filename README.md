@@ -15,7 +15,7 @@
 ---
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3-777bb4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
-[![Release](https://img.shields.io/badge/Release-v0.0.3-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
+[![Release](https://img.shields.io/badge/Release-v0.0.4-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
 [![Telegram Mini App](https://img.shields.io/badge/Telegram-Mini%20App%20Ready-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://telegram.org)
 [![Supported OS](https://img.shields.io/badge/Ubuntu-20.04%20%7C%2022.04%20%7C%2024.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![License](https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge)](LICENSE)
@@ -40,11 +40,11 @@
 ---
 
 <a name="-معرفی-پلتفرم-زوروکس-پرو"></a>
-## 💎 معرفی پلتفرم زوروکس پرو (نسخه 0.0.3)
+## 💎 معرفی پلتفرم زوروکس پرو (نسخه 0.0.4)
 
 **پلتفرم زوروکس (Zorvex Pro)** نسل نوینی از سیستم‌های مدیریت، فروش و مانیتورینگ سرویس‌های وی‌پی‌ان بر بستر پیام‌رسان تلگرام است. این پلتفرم با ترکیب رابط کاربری مدرن نئونی، مینی‌اپلیکیشن مستقل تک‌صفحه‌ای (SPA) و پنل مدیریتی غنی، تمامی نیازهای یک سرور و ارائه‌دهنده سرویس اینترنت آزاد را پوشش می‌دهد.
 
-### ✨ امکانات و قابلیت‌های متمایز نسخه 0.0.3:
+### ✨ امکانات و قابلیت‌های متمایز نسخه 0.0.4:
 1. **مینی‌اپلیکیشن تلگرام (Telegram Mini App):**
    - تم سایبردارک اختصاصی با قابلیت انتخاب رنگ‌های نئونی پویا (Cyan, Electric Violet, Emerald, Crimson).
    - رینگ گرافیکی و داینامیک مصرف ترافیک لحظه‌ای با محاسبه گر روزهای باقیمانده.
