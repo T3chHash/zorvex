@@ -170,7 +170,7 @@ _drule()  { printf "  ${C_BORDER}%s${CR}\n" "$(_repeat "━" "$UI_W")"; }
 banner()  {
     echo
     _drule
-    printf "  ${C_OK}▌${CR} ${C_TITLE}ZORVEX${CR}  ${C_DIM}— VPN Subscription Management${CR}\n"
+    printf "  ${C_OK}▌${CR} ${C_TITLE}ZORVEX PRO${CR}  ${C_DIM}— پلتفرم هوشمند مدیریت و فروش VPN${CR}\n"
     _drule
 }
 # Menu item row: [n] label  (left-aligned, no right border)
@@ -921,76 +921,76 @@ version_section() {
     local inst latest
     inst=$(get_installed_version)
     latest=$(get_latest_version)
-    _sec "Version Status"
+    _sec "وضعیت نسخه پلتفرم"
     if [ -n "$inst" ]; then
-        _kv "Installed" "$(_dot ok) ${C_OK}${inst}${CR}"
+        _kv "نسخه نصب‌شده" "$(_dot ok) ${C_OK}${inst}${CR}"
     else
-        _kv "Installed" "$(_dot bad) ${C_BAD}not installed${CR}"
+        _kv "نسخه نصب‌شده" "$(_dot bad) ${C_BAD}نصب نشده${CR}"
     fi
     if [ -n "$latest" ]; then
         if [ -n "$inst" ] && [ "$inst" = "$latest" ]; then
-            _kv "Latest" "$(_dot ok) ${C_OK}${latest}${CR} ${C_DIM}(up to date)${CR}"
+            _kv "آخرین نسخه" "$(_dot ok) ${C_OK}${latest}${CR} ${C_DIM}(کاملاً بروز)${CR}"
         elif [ -n "$inst" ]; then
-            _kv "Latest" "$(_dot warn) \033[1;37;41m ${latest} \033[0m \033[1;33m[UPDATE AVAILABLE!]\033[0m"
+            _kv "آخرین نسخه" "$(_dot warn) \033[1;37;41m ${latest} \033[0m \033[1;33m[آپدیت جدید موجود است!]\033[0m"
         else
-            _kv "Latest" "$(_dot warn) ${C_DIM}${latest}${CR}"
+            _kv "آخرین نسخه" "$(_dot warn) ${C_DIM}${latest}${CR}"
         fi
     else
-        _kv "Latest" "$(_dot warn) ${C_DIM}unknown (offline)${CR}"
+        _kv "آخرین نسخه" "$(_dot warn) ${C_DIM}نامشخص (عدم دسترسی به اینترنت)${CR}"
     fi
-    _kv "Channel" "${C_DIM}t.me/zorvexpanel${CR}"
-    _kv "Group" "${C_DIM}t.me/zorvexpanelgroup${CR}"
+    _kv "کانال اطلاع‌رسانی" "${C_DIM}t.me/zorvexpanel${CR}"
+    _kv "گروه پشتیبانی" "${C_DIM}t.me/zorvexpanelgroup${CR}"
 }
 
 bot_section() {
     SSL_DOMAIN=""
-    _sec "Bot Status"
+    _sec "وضعیت ربات و سرور"
     local cfg; cfg=$(get_active_config_file)
     if [ ! -f "$cfg" ]; then
-        _kv "State" "$(_dot bad) ${C_BAD}not installed${CR}"
+        _kv "وضعیت ربات" "$(_dot bad) ${C_BAD}نصب نشده${CR}"
         return
     fi
-    _kv "State" "$(_dot ok) ${C_OK}installed${CR}"
+    _kv "وضعیت ربات" "$(_dot ok) ${C_OK}نصب‌شده و فعال${CR}"
     SSL_DOMAIN=$(grep '^\$domainhosts' "$cfg" | cut -d"'" -f2 | cut -d'/' -f1)
     if [ -n "$SSL_DOMAIN" ] && [ -f "/etc/letsencrypt/live/$SSL_DOMAIN/cert.pem" ]; then
         local expiry days
         expiry=$(openssl x509 -enddate -noout -in "/etc/letsencrypt/live/$SSL_DOMAIN/cert.pem" 2>/dev/null | cut -d= -f2)
         days=$(( ( $(date -d "$expiry" +%s 2>/dev/null || echo 0) - $(date +%s) ) / 86400 ))
         if [ "$days" -gt 14 ]; then
-            _kv "SSL" "$(_dot ok) ${C_OK}valid${CR} ${C_DIM}(${days} days left)${CR}"
+            _kv "گواهی SSL" "$(_dot ok) ${C_OK}معتبر و فعال${CR} ${C_DIM}(${days} روز باقیمانده)${CR}"
         elif [ "$days" -gt 0 ]; then
-            _kv "SSL" "$(_dot warn) ${C_WARN}valid${CR} ${C_DIM}(${days} days left - renew soon)${CR}"
+            _kv "گواهی SSL" "$(_dot warn) ${C_WARN}معتبر${CR} ${C_DIM}(${days} روز باقیمانده - نیازمند تمدید)${CR}"
         else
-            _kv "SSL" "$(_dot bad) ${C_BAD}expired${CR}"
+            _kv "گواهی SSL" "$(_dot bad) ${C_BAD}منقضی شده${CR}"
         fi
     else
-        _kv "SSL" "$(_dot warn) ${C_WARN}certificate not found${CR}"
+        _kv "گواهی SSL" "$(_dot warn) ${C_WARN}گواهی یافت نشد یا ثبت نشده${CR}"
     fi
     if [ -n "$SSL_DOMAIN" ]; then
-        _kv "Domain" "${C_DIM}https://${SSL_DOMAIN}${CR}"
-        _kv "phpMyAdmin" "${C_DIM}https://${SSL_DOMAIN}/phpmyadmin${CR}"
+        _kv "دامنه سرور" "${C_DIM}https://${SSL_DOMAIN}${CR}"
+        _kv "پنل phpMyAdmin" "${C_DIM}https://${SSL_DOMAIN}/phpmyadmin${CR}"
     fi
 }
 
 # Read the Telegram webhook using the bot token from config.php.
 # Prints webhook URL / pending count, and surfaces any error message.
 webhook_section() {
-    _sec "Webhook"
+    _sec "وضعیت وب‌هوک تلگرام"
     local cfg; cfg=$(get_active_config_file)
     if [ ! -f "$cfg" ]; then
-        _kv "Status" "$(_dot warn) ${C_DIM}n/a (bot not installed)${CR}"
+        _kv "وضعیت اتصال" "$(_dot warn) ${C_DIM}غیرفعال (ربات نصب نشده)${CR}"
         return
     fi
     local token info ok url pending err errdate apierr when
     token=$(grep '^\$APIKEY' "$cfg" | cut -d"'" -f2)
     if [ -z "$token" ]; then
-        _kv "Status" "$(_dot bad) ${C_BAD}token not found in config.php${CR}"
+        _kv "وضعیت اتصال" "$(_dot bad) ${C_BAD}توکن ربات در config.php یافت نشد${CR}"
         return
     fi
     info=$(curl -fsSL --max-time 8 "https://api.telegram.org/bot${token}/getWebhookInfo" 2>/dev/null)
     if [ -z "$info" ]; then
-        _kv "Status" "$(_dot bad) ${C_BAD}cannot reach Telegram API${CR}"
-        printf "    ${C_BAD}Error:${CR} request to api.telegram.org failed (network/timeout).\n"
+        _kv "وضعیت اتصال" "$(_dot bad) ${C_BAD}خطا در اتصال به سرور تلگرام${CR}"
+        printf "    ${C_BAD}خطا:${CR} ارتباط با api.telegram.org برقرار نشد (بررسی اینترنت/فیلترینگ).\n"
         return
     fi
     if command -v jq >/dev/null 2>&1; then
@@ -1011,25 +1011,25 @@ webhook_section() {
     fi
     # Telegram-level API failure (e.g. invalid/revoked token)
     if [ "$ok" != "true" ]; then
-        _kv "Status" "$(_dot bad) ${C_BAD}API error${CR}"
-        [ -n "$apierr" ] && printf "    ${C_BAD}Error:${CR} %s\n" "$apierr"
+        _kv "وضعیت اتصال" "$(_dot bad) ${C_BAD}خطای توکن تلگرام${CR}"
+        [ -n "$apierr" ] && printf "    ${C_BAD}توضیحات:${CR} %s\n" "$apierr"
         return
     fi
     # Webhook URL
     if [ -n "$url" ]; then
-        _kv "URL" "$(_dot ok) ${C_OK}set${CR} ${C_DIM}(${url})${CR}"
+        _kv "آدرس وب‌هوک" "$(_dot ok) ${C_OK}متصل و فعال${CR} ${C_DIM}(${url})${CR}"
     else
-        _kv "URL" "$(_dot bad) ${C_BAD}not set${CR}"
+        _kv "آدرس وب‌هوک" "$(_dot bad) ${C_BAD}متصل نیست${CR}"
     fi
-    _kv "Pending" "${C_DIM}${pending} update(s)${CR}"
+    _kv "پیام‌های در صف" "${C_DIM}${pending} پیام${CR}"
     # Last delivery error reported by Telegram
     if [ -n "$err" ]; then
         when=""
         [ -n "$errdate" ] && when=$(date -d "@$errdate" '+%Y-%m-%d %H:%M' 2>/dev/null)
-        _kv "Last error" "$(_dot bad) ${C_BAD}${err}${CR}"
-        [ -n "$when" ] && _kv "Error time" "${C_DIM}${when}${CR}"
+        _kv "آخرین خطا" "$(_dot bad) ${C_BAD}${err}${CR}"
+        [ -n "$when" ] && _kv "زمان بروز خطا" "${C_DIM}${when}${CR}"
     else
-        _kv "Last error" "$(_dot ok) ${C_OK}none${CR}"
+        _kv "آخرین خطا" "$(_dot ok) ${C_OK}بدون خطا (سالم)${CR}"
     fi
 }
 
@@ -1040,13 +1040,13 @@ system_section() {
     mysql_s=$(systemctl is-active mysql 2>/dev/null || echo "inactive")
     ip=$(get_server_ip)
     if [ -f /etc/os-release ]; then os=$(. /etc/os-release; echo "$PRETTY_NAME"); else os="Unknown"; fi
-    _svc_row() { if [ "$2" = "active" ]; then _kv "$1" "$(_dot ok) ${C_OK}active${CR}"; else _kv "$1" "$(_dot bad) ${C_BAD}$2${CR}"; fi; }
-    _sec "System"
-    _kv "OS" "${C_DIM}${os}${CR}"
-    _kv "PHP" "${C_DIM}${php_v}${CR}"
-    _svc_row "Apache" "$apache_s"
-    _svc_row "MySQL" "$mysql_s"
-    _kv "Server IP" "${C_DIM}${ip}${CR}"
+    _svc_row() { if [ "$2" = "active" ]; then _kv "$1" "$(_dot ok) ${C_OK}روشن و فعال${CR}"; else _kv "$1" "$(_dot bad) ${C_BAD}غیرفعال ($2)${CR}"; fi; }
+    _sec "مشخصات سیستم‌عامل و سرور"
+    _kv "سیستم‌عامل" "${C_DIM}${os}${CR}"
+    _kv "نسخه PHP" "${C_DIM}${php_v}${CR}"
+    _svc_row "وب‌سرور آپاچی" "$apache_s"
+    _svc_row "پایگاه‌داده MySQL" "$mysql_s"
+    _kv "آی‌پی سرور" "${C_DIM}${ip}${CR}"
 }
 
 resources_section() {
@@ -1059,11 +1059,11 @@ resources_section() {
     cores=$(nproc 2>/dev/null)
     up=$(uptime -p 2>/dev/null | sed 's/^up //')
     [ -z "$up" ] && up="n/a"
-    _sec "Resources"
-    _kv "RAM" "${C_DIM}${mem_u}MB / ${mem_t}MB  (${mem_p}%)${CR}"
-    _kv "Disk" "${C_DIM}${disk}${CR}"
-    _kv "CPU load" "${C_DIM}${load}  (${cores} cores)${CR}"
-    _kv "Uptime" "${C_DIM}${up}${CR}"
+    _sec "میزان مصرف منابع سرور"
+    _kv "حافظه رم (RAM)" "${C_DIM}${mem_u}MB از ${mem_t}MB  (${mem_p}%)${CR}"
+    _kv "فضای دیسک" "${C_DIM}${disk}${CR}"
+    _kv "بار پردازنده (CPU)" "${C_DIM}${load}  (${cores} هسته)${CR}"
+    _kv "مدت زمان روشن بودن" "${C_DIM}${up}${CR}"
 }
 
 function show_logo() {
@@ -1352,11 +1352,11 @@ function show_menu() {
     _mi "1" "نصب پلتفرم Zorvex"
     _mi "2" "بروزرسانی Zorvex${update_badge}"
     _mi "3" "حذف کامل Zorvex"
-    _mi "4" "مهاجرت: رایگان -> حرفه‌ای (Beta)"
-    _mi "5" "تمدید یا صدور گواهی SSL"
-    _mi "6" "پشتیبان‌گیری از دیتابیس (Backup)"
-    _mi "7" "بازیابی دیتابیس (Restore)  ${C_WARN}(Beta)${CR}"
-    _mi "8" "راهنما و پارامترها"
+    _mi "4" "مهاجرت: نسخه رایگان -> حرفه‌ای (Beta)"
+    _mi "5" "تمدید یا صدور مجدد گواهی SSL"
+    _mi "6" "پشتیبان‌گیری از اطلاعات (Backup)"
+    _mi "7" "بازیابی فایل پشتیبان (Restore)  ${C_WARN}(Beta)${CR}"
+    _mi "8" "راهنما و دستورات کمکی"
     _mi "9" "خروج"
     _rule
     echo ""
