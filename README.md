@@ -15,7 +15,7 @@
 ---
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3-777bb4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
-[![Release](https://img.shields.io/badge/Release-v1.0.8-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
+[![Release](https://img.shields.io/badge/Release-v1.1.0-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
 [![Telegram Mini App](https://img.shields.io/badge/Telegram-Mini%20App%20Ready-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://telegram.org)
 [![Supported OS](https://img.shields.io/badge/Ubuntu-20.04%20%7C%2022.04%20%7C%2024.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![License](https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge)](LICENSE)
@@ -40,12 +40,19 @@
 ---
 
 <a name="-معرفی-پلتفرم-زوروکس-پرو"></a>
-## 💎 معرفی پلتفرم زوروکس پرو (نسخه پایدار 1.0.8)
+## 💎 معرفی پلتفرم زوروکس پرو (نسخه پایدار عمومی 1.1.0)
 
 **پلتفرم زوروکس (Zorvex Pro)** نسل نوینی از سیستم‌های مدیریت، فروش و مانیتورینگ سرویس‌های وی‌پی‌ان بر بستر پیام‌رسان تلگرام است. این پلتفرم با ترکیب رابط کاربری مدرن نئونی، مینی‌اپلیکیشن مستقل تک‌صفحه‌ای (SPA) و پنل مدیریتی غنی، تمامی نیازهای یک سرور و ارائه‌دهنده سرویس اینترنت آزاد را پوشش می‌دهد.
 
-### ✨ امکانات و بهبودهای متمایز نسخه 1.0.8:
-1. **رفع ریشه‌ای باگ ثبت و عدم نمایش محصولات در ردیف‌های پنل و ربات (`product.php` & `index.php`):**
+### ✨ امکانات و بهبودهای متمایز نسخه 1.1.0 (Public Release):
+1. **اصلاح و نوسازی کامل فرایند «خرید اشتراک» در ربات تلگرام:**
+   - حل قطعی مشکل کار نکردن و عدم واکنش ربات به دکمه «خرید اشتراک» با تابع چندلایه `is_buy_command`.
+   - حل خطای Fatal PHP 8.2 ناشی از `in_array` روی آرایه‌های `hide_user` و `hide_panel` از طریق تابع امن `faoxima_is_in_json_list`.
+   - مقاوم‌سازی کامل کوئری‌های پنل‌ها و محصولات در برابر مقادیر خالی یا نال `agent` جهت نمایش بدون نقص تمام سرورها و پلن‌ها.
+   - فعال‌سازی خودکار لوکیشن پیش‌فرض در صورت خالی بودن جدول پنل‌ها جهت فعال ماندن آنی فرایند خرید.
+   - اجرای خودکار Self-Healing دیتابیس در وبهوک ربات پیش از بارگذاری کیبوردها جهت پیشگیری از خطاهای ۵۰۰ سرور.
+
+2. **رفع ریشه‌ای باگ ثبت و عدم نمایش محصولات در ردیف‌های پنل و ربات (`product.php` & `index.php`):**
    - اصلاح تطابق پارامترهای بیلد کوئری PDO (`:symbolic_limit_users`) که مانع از اجرای INSERT و ثبت محصول در دیتابیس می‌شد.
    - پاکسازی فرمت قیمت از کاما و نویسه‌های جداکننده به صورت خودکار پیش از ذخیره.
    - اصلاح کوئری‌های واکشی محصولات در ربات تلگرام جهت پشتیبانی کامل از محصولات عمومی (`agent = 'all'`) و چند لوکیشنی (`FIND_IN_SET`).

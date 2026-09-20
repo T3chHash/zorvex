@@ -1,8 +1,18 @@
 <?php
 
+if (!function_exists('faoxima_is_in_json_list')) {
+    function faoxima_is_in_json_list($needle, $jsonOrArray): bool {
+        if (empty($jsonOrArray)) {
+            return false;
+        }
+        $data = is_array($jsonOrArray) ? $jsonOrArray : json_decode((string)$jsonOrArray, true);
+        return is_array($data) && in_array($needle, $data);
+    }
+}
+
 $botinfo = select("botsaz", "*", "bot_token", $ApiToken, "select");
 $userbot = select("user", "*", "id", $botinfo['id_user'], "select");
-$hide_panel = json_decode($botinfo['hide_panel'], true);
+$hide_panel = !empty($botinfo['hide_panel']) ? json_decode($botinfo['hide_panel'], true) : [];
 $text_bot_var = json_decode(file_get_contents('text.json'), true);
 // keyboard bot 
 $keyboarddate = array(
@@ -56,9 +66,9 @@ $stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE TestAccount = 'ONTestAc
 $stmt->execute([':mp1' => $userbot['agent']]);
 $list_marzban_panel_usertest = ['inline_keyboard' => []];
 while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    if ($result['hide_user'] != null and in_array($from_id, json_decode($result['hide_user'], true)))
+    if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null))
         continue;
-    if (in_array($result['name_panel'], $hide_panel))
+    if (faoxima_is_in_json_list($result['name_panel'], $hide_panel))
         continue;
     $list_marzban_panel_usertest['inline_keyboard'][] = [
         ['text' => $result['name_panel'], 'callback_data' => "locationtest_{$result['code_panel']}"]
@@ -156,9 +166,9 @@ $stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (
 $stmt->execute([':mp2' => $userbot['agent']]);
 $list_marzban_panel_users = ['inline_keyboard' => []];
 while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    if ($result['hide_user'] != null and in_array($from_id, json_decode($result['hide_user'], true)))
+    if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null))
         continue;
-    if (in_array($result['name_panel'], $hide_panel))
+    if (faoxima_is_in_json_list($result['name_panel'], $hide_panel))
         continue;
     $list_marzban_panel_users['inline_keyboard'][] = [
         ['text' => $result['name_panel'], 'callback_data' => "location_{$result['code_panel']}"]
@@ -196,8 +206,7 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
         if (isset($productlist[$result['code_product']]))
             $result['price_product'] = $productlist[$result['code_product']];
         $result['name_product'] = empty($productlist_name[$result['code_product']]) ? $result['name_product'] : $productlist_name[$result['code_product']];
-        $hide_panel = json_decode($result['hide_panel'], true);
-        if (in_array($location, $hide_panel))
+        if (faoxima_is_in_json_list($location, $result['hide_panel'] ?? null))
             continue;
         if (intval($pricediscount) != 0) {
             $resultper = ($result['price_product'] * $pricediscount) / 100;

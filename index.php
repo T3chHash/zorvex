@@ -8,6 +8,12 @@ require_once 'config.php';
 require_once 'botapi.php';
 require_once 'jdf.php';
 require_once 'function.php';
+if (file_exists(__DIR__ . '/panel/lib/schema.php')) {
+    require_once __DIR__ . '/panel/lib/schema.php';
+    if (isset($pdo) && $pdo instanceof PDO) {
+        try { faoxima_schema_ready($pdo); } catch (\Throwable $e) { error_log('[index] schema ready: ' . $e->getMessage()); }
+    }
+}
 zorvexEnsureInstallerRemoved();
 require_once 'keyboard.php';
 require_once 'vendor/autoload.php';
@@ -1443,8 +1449,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         $productextend = ['inline_keyboard' => []];
         $statusshowprice = select("shopSetting", "*", "Namevalue", "statusshowprice", "select")['value'];
         while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $hide_panel = json_decode($result['hide_panel'], true);
-            if (in_array($nameloc['Service_location'], $hide_panel))
+            if (faoxima_is_in_json_list($nameloc['Service_location'], $result['hide_panel'] ?? null))
                 continue;
             if (intval($user['pricediscount']) != 0) {
                 $resultper = ($result['price_product'] * $user['pricediscount']) / 100;
@@ -2939,12 +2944,9 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     }
     if ($locationproduct == 1) {
         $panel = select("marzban_panel", "*", "TestAccount", "ONTestAccount", "select");
-        if ($panel['hide_user'] != null) {
-            $list_user = json_decode($panel['hide_user'], true);
-            if (in_array($from_id, $list_user)) {
-                sendmessage($from_id, $textbotlang['users']['sell']['nullPanel'], null, 'HTML');
-                return;
-            }
+        if (faoxima_is_in_json_list($from_id, $panel['hide_user'] ?? null)) {
+            sendmessage($from_id, $textbotlang['users']['sell']['nullPanel'], null, 'HTML');
+            return;
         }
         $location = $panel['code_panel'];
     } else {
@@ -3406,15 +3408,21 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     }
     step("statusnamecustom", $from_id);
     return;
-} elseif ($text == $textbotlang['textbot']['sell'] || $datain == "buy" || $datain == "buybacktow" || $datain == "buyback" || $text == "/buy" || $text == "buy" || $user['step'] == "statusnamecustom") {
+} elseif (is_buy_command($text, $datain, $textbotlang) || $user['step'] == "statusnamecustom") {
     if (!check_active_btn($setting['keyboardmain'], "text_sell")) {
         sendmessage($from_id, $textbotlang['users']['buttonDisabled'], null, 'HTML');
         return;
     }
-    $locationproduct = $pdo->prepare("SELECT * FROM marzban_panel  WHERE status = 'active' AND (agent = ? OR agent = 'all')");
-    $locationproduct->bindValue(1, $user['agent'], PDO::PARAM_STR);
-    $locationproduct->execute();
-    if (($locationproduct)->rowCount() == 0) {
+    $userAgent = !empty($user['agent']) ? $user['agent'] : 'f';
+    try {
+        $locationproduct = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (agent = ? OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(?, agent) > 0)");
+        $locationproduct->bindValue(1, $userAgent, PDO::PARAM_STR);
+        $locationproduct->bindValue(2, $userAgent, PDO::PARAM_STR);
+        $locationproduct->execute();
+    } catch (\Throwable $e) {
+        $locationproduct = $pdo->query("SELECT * FROM marzban_panel WHERE status = 'active'");
+    }
+    if (!$locationproduct || ($locationproduct)->rowCount() == 0) {
         sendmessage($from_id, $textbotlang['users']['sell']['nullPanel'], null, 'HTML');
         return;
     }
@@ -3428,17 +3436,14 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     if (($locationproduct)->rowCount() == 1) {
         $location = ($locationproduct)->fetch(PDO::FETCH_ASSOC)['name_panel'];
         $locationproduct = select("marzban_panel", "*", "name_panel", $location, "select");
-        if ($locationproduct['hide_user'] != null) {
-            $list_user = json_decode($locationproduct['hide_user'], true);
-            if (in_array($from_id, $list_user)) {
-                sendmessage($from_id, $textbotlang['users']['sell']['nullPanel'], null, 'HTML');
-                return;
-            }
+        if (faoxima_is_in_json_list($from_id, $locationproduct['hide_user'] ?? null)) {
+            sendmessage($from_id, $textbotlang['users']['sell']['nullPanel'], null, 'HTML');
+            return;
         }
         $stmt = $pdo->prepare("SELECT * FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND Service_location = :mp2");
         $stmt->execute([':mp2' => $location]);
         $countinovoice = $stmt->rowCount();
-        if (is_numeric($locationproduct['limit_panel'])) {
+        if (isset($locationproduct['limit_panel']) && is_numeric($locationproduct['limit_panel'])) {
             if ($countinovoice >= intval($locationproduct['limit_panel'])) {
                 sendmessage($from_id, $textbotlang['users']['sell']['capacityFull'], null, 'HTML');
                 return;
@@ -3453,12 +3458,12 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         }
         if ($setting['statuscategory'] == "offcategory") {
             $marzban_list_get = $locationproduct;
-            $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-            $custompricevalue = $eextraprice[$user['agent']];
-            $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-            $mainvolume = $mainvolume[$user['agent']];
-            $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-            $maxvolume = $maxvolume[$user['agent']];
+            $eextraprice = !empty($marzban_list_get['pricecustomvolume']) ? json_decode($marzban_list_get['pricecustomvolume'], true) : [];
+            $custompricevalue = is_array($eextraprice) ? ($eextraprice[$userAgent] ?? 0) : 0;
+            $mainvolumeArr = !empty($marzban_list_get['mainvolume']) ? json_decode($marzban_list_get['mainvolume'], true) : [];
+            $mainvolume = is_array($mainvolumeArr) ? ($mainvolumeArr[$userAgent] ?? 0) : 0;
+            $maxvolumeArr = !empty($marzban_list_get['maxvolume']) ? json_decode($marzban_list_get['maxvolume'], true) : [];
+            $maxvolume = is_array($maxvolumeArr) ? ($maxvolumeArr[$userAgent] ?? 0) : 0;
             $nullproduct = select("product", "*", null, null, "count");
             if ($nullproduct == 0) {
                 $textcustom = sprintf($textbotlang['users']['sell']['customVolumePrompt3'], $custompricevalue, $mainvolume, $maxvolume);
@@ -3474,30 +3479,31 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
                     $backtarget = "backuser";
                 }
                 if ($datain == "buy") {
-                    Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($location, $user['agent'], $backtarget));
+                    Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($location, $userAgent, $backtarget));
                 } else {
-                    sendmessage($from_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($location, $user['agent'], $backtarget), 'HTML');
+                    sendmessage($from_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($location, $userAgent, $backtarget), 'HTML');
                 }
             } else {
-                $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers') OR FIND_IN_SET(:agent, agent) > 0)";
-                $queryParams = [':loc' => $location, ':agent' => $user['agent']];
+                $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)";
+                $queryParams = [':loc' => $location, ':agent' => $userAgent];
                 $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
-                $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
-                if (in_array(usernameMethodKey($marzban_list_get['MethodUsername']), ['customUsername', 'customUsernameRandom'], true)) {
+                $cvDecoded = !empty($marzban_list_get['customvolume']) ? json_decode($marzban_list_get['customvolume'], true) : [];
+                $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$userAgent] ?? '0') : '0';
+                if (in_array(usernameMethodKey($marzban_list_get['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
                     $datakeyboard = "prodcutservices_";
                 } else {
                     $datakeyboard = "prodcutservice_";
                 }
-                if ($statuscustomvolume == "1" && $marzban_list_get['type'] != "Manualsale") {
+                if ($statuscustomvolume == "1" && ($marzban_list_get['type'] ?? '') != "Manualsale") {
                     $statuscustom = true;
                 } else {
                     $statuscustom = false;
                 }
                 $textproduct = $textbotlang['users']['sell']['serviceSelectFirst'];
                 if ($datain == "buy") {
-                    Editmessagetext($from_id, $message_id, $textproduct, KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $queryParams));
+                    Editmessagetext($from_id, $message_id, $textproduct, KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'] ?? 0, $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $queryParams));
                 } else {
-                    sendmessage($from_id, $textproduct, KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $queryParams), 'HTML');
+                    sendmessage($from_id, $textproduct, KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'] ?? 0, $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $queryParams), 'HTML');
                 }
             }
         } else {
@@ -3508,15 +3514,16 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
             }
             $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
             $statuscustom = false;
-            $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
-            if ($statuscustomvolume == "1" && $marzban_list_get['type'] != "Manualsale")
+            $cvDecoded = !empty($marzban_list_get['customvolume']) ? json_decode($marzban_list_get['customvolume'], true) : [];
+            $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$userAgent] ?? '0') : '0';
+            if ($statuscustomvolume == "1" && ($marzban_list_get['type'] ?? '') != "Manualsale")
                 $statuscustom = true;
             if ($statusnote) {
                 $back = "buyback";
             } else {
                 $back = "backuser";
             }
-            $monthkeyboard = keyboardTimeCategory($marzban_list_get['name_panel'], $user['agent'], "productmonth_", $back, $statuscustom, false);
+            $monthkeyboard = keyboardTimeCategory($marzban_list_get['name_panel'], $userAgent, "productmonth_", $back, $statuscustom, false);
             if ($datain == "buy" || $datain == "buybacktow") {
                 Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectDuration'], $monthkeyboard);
             } else {
@@ -3535,18 +3542,19 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         sendmessage($from_id, $textbotlang['textbot']['selectLocation'], $list_marzban_panel_user, 'HTML');
     }
 } elseif (preg_match('/^location_(.*)/', $datain, $dataget) || $datain == "backproduct") {
-    $userdate = json_decode($user['Processing_value'], true);
+    $userAgent = !empty($user['agent']) ? $user['agent'] : 'f';
+    $userdate = json_decode($user['Processing_value'] ?? '', true);
     if ($datain != "backproduct") {
         $location = select("marzban_panel", "*", "code_panel", $dataget[1], "select")['name_panel'];
     } else {
-        $location = $userdate['name_panel'];
+        $location = is_array($userdate) ? ($userdate['name_panel'] ?? '') : '';
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
     $locationproductcount = select("marzban_panel", "*", "name_panel", $location, "count");
     $stmt = $pdo->prepare("SELECT * FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND  Service_location = :mp2");
-    $stmt->execute([':mp2' => $marzban_list_get['name_panel']]);
+    $stmt->execute([':mp2' => $marzban_list_get['name_panel'] ?? $location]);
     $countinovoice = $stmt->rowCount();
-    if (is_numeric($marzban_list_get['limit_panel'])) {
+    if (isset($marzban_list_get['limit_panel']) && is_numeric($marzban_list_get['limit_panel'])) {
         if ($countinovoice >= intval($marzban_list_get['limit_panel'])) {
             sendmessage($from_id, $textbotlang['users']['sell']['panelCapacityFull'], null, 'HTML');
             return;
@@ -3559,12 +3567,12 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     }
     $nullproduct = select("product", "*", null, null, "count");
     if ($nullproduct == 0) {
-        $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-        $custompricevalue = $eextraprice[$user['agent']];
-        $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-        $mainvolume = $mainvolume[$user['agent']];
-        $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-        $maxvolume = $maxvolume[$user['agent']];
+        $eextraprice = !empty($marzban_list_get['pricecustomvolume']) ? json_decode($marzban_list_get['pricecustomvolume'], true) : [];
+        $custompricevalue = is_array($eextraprice) ? ($eextraprice[$userAgent] ?? 0) : 0;
+        $mainvolumeArr = !empty($marzban_list_get['mainvolume']) ? json_decode($marzban_list_get['mainvolume'], true) : [];
+        $mainvolume = is_array($mainvolumeArr) ? ($mainvolumeArr[$userAgent] ?? 0) : 0;
+        $maxvolumeArr = !empty($marzban_list_get['maxvolume']) ? json_decode($marzban_list_get['maxvolume'], true) : [];
+        $maxvolume = is_array($maxvolumeArr) ? ($maxvolumeArr[$userAgent] ?? 0) : 0;
         $textcustom = sprintf($textbotlang['users']['sell']['customVolumePrompt4'], $custompricevalue, $mainvolume, $maxvolume);
         sendmessage($from_id, $textcustom, $backuser, 'html');
         step('gettimecustomvol', $from_id);
@@ -3573,17 +3581,18 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     if ($setting['statuscategory'] == "offcategory") {
         if ($setting['statuscategorygenral'] == "oncategorys") {
             $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
-            Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($location, $user['agent'], "buybacktow"));
+            Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($location, $userAgent, "buybacktow"));
         } else {
-            $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers') OR FIND_IN_SET(:agent, agent) > 0)";
-            $queryParams = [':loc' => $location, ':agent' => $user['agent']];
-            $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
-            if (in_array(usernameMethodKey($marzban_list_get['MethodUsername']), ['customUsername', 'customUsernameRandom'], true)) {
+            $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)";
+            $queryParams = [':loc' => $location, ':agent' => $userAgent];
+            $cvDecoded = !empty($marzban_list_get['customvolume']) ? json_decode($marzban_list_get['customvolume'], true) : [];
+            $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$userAgent] ?? '0') : '0';
+            if (in_array(usernameMethodKey($marzban_list_get['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
                 $datakeyboard = "prodcutservices_";
             } else {
                 $datakeyboard = "prodcutservice_";
             }
-            if ($statuscustomvolume == "1" && $marzban_list_get['type'] != "Manualsale") {
+            if ($statuscustomvolume == "1" && ($marzban_list_get['type'] ?? '') != "Manualsale") {
                 $statuscustom = true;
             } else {
                 $statuscustom = false;
@@ -3593,7 +3602,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
             } else {
                 $back = "buyback";
             }
-            Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelect'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, $back, null, "customsellvolume", $queryParams));
+            Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelect'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'] ?? 0, $datakeyboard, $statuscustom, $back, null, "customsellvolume", $queryParams));
         }
     } else {
         $nullproduct = select("product", "*", null, null, "count");
@@ -3602,10 +3611,11 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
             return;
         }
         $statuscustom = false;
-        $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
-        if ($statuscustomvolume == "1" && $marzban_list_get['type'] != "Manualsale")
+        $cvDecoded = !empty($marzban_list_get['customvolume']) ? json_decode($marzban_list_get['customvolume'], true) : [];
+        $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$userAgent] ?? '0') : '0';
+        if ($statuscustomvolume == "1" && ($marzban_list_get['type'] ?? '') != "Manualsale")
             $statuscustom = true;
-        $monthkeyboard = keyboardTimeCategory($marzban_list_get['name_panel'], $user['agent'], "productmonth_", "buybacktow", $statuscustom, false);
+        $monthkeyboard = keyboardTimeCategory($marzban_list_get['name_panel'], $userAgent, "productmonth_", "buybacktow", $statuscustom, false);
         Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectDuration'], $monthkeyboard);
     }
 } elseif (preg_match('/^categorynames_(.*)/', $datain, $dataget)) {

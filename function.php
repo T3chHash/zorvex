@@ -2883,3 +2883,36 @@ if (!function_exists('faoxima_public_purchase_log_event')) {
         zorvex_public_purchase_log_event($eventType, $data, $setting);
     }
 }
+
+if (!function_exists('faoxima_is_in_json_list')) {
+    function faoxima_is_in_json_list($needle, $jsonOrArray): bool {
+        if (empty($jsonOrArray)) {
+            return false;
+        }
+        $data = is_array($jsonOrArray) ? $jsonOrArray : json_decode((string)$jsonOrArray, true);
+        return is_array($data) && in_array($needle, $data);
+    }
+}
+
+if (!function_exists('is_buy_command')) {
+    function is_buy_command(?string $text, ?string $datain, array $textbotlang = []): bool {
+        if (in_array($datain, ['buy', 'buybacktow', 'buyback'], true)) {
+            return true;
+        }
+        $t = trim((string)$text);
+        if ($t === '') {
+            return false;
+        }
+        if (in_array($t, ['/buy', 'buy', '!buy', 'خرید', 'خرید اشتراک', 'خرید سرویس', '🛍 خرید اشتراک', '🔐 خرید اشتراک', '🛒 خرید اشتراک', 'خرید اشتراک 🛍', 'سفارش اشتراک', 'خرید سرویس جدید'], true)) {
+            return true;
+        }
+        $configuredSell = trim((string)($textbotlang['textbot']['sell'] ?? ''));
+        if ($configuredSell !== '' && ($t === $configuredSell || mb_stripos($t, $configuredSell) !== false)) {
+            return true;
+        }
+        if (preg_match('/(خرید|سفارش)\s*(اشتراک|سرویس|کانفیگ)/u', $t)) {
+            return true;
+        }
+        return false;
+    }
+}

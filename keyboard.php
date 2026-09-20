@@ -12,15 +12,16 @@ if (!$adminrulecheck) {
 }
 $users = select("user", "*", "id", $from_id, "select");
 if ($users == false) {
-    $users = array();
     $users = array(
         'step' => '',
-        'agent' => '',
+        'agent' => 'f',
         'limit_usertest' => '',
         'Processing_value' => '',
         'Processing_value_four' => '',
         'cardpayment' => ""
     );
+} elseif (empty($users['agent'])) {
+    $users['agent'] = 'f';
 }
 $replacements = [
     'text_usertest' => $textbotlang['textbot']['userTest'],
@@ -589,22 +590,33 @@ $helpappremove['keyboard'][] = [
 ];
 $json_list_remove_helpـlink = json_encode($helpappremove);
 //------------------  [ listpanelusers ]----------------//
-$stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (agent = :agent OR agent = 'all')");
-$stmt->bindParam(':agent', $users['agent']);
-$stmt->execute();
-$activePanelRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$agentVal = !empty($users['agent']) ? $users['agent'] : 'f';
+$activePanelRows = [];
+try {
+    $stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)");
+    $stmt->bindParam(':agent', $agentVal);
+    $stmt->execute();
+    $activePanelRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (\Throwable $e) {
+    try {
+        $stmt = $pdo->query("SELECT * FROM marzban_panel WHERE status = 'active'");
+        if ($stmt) $activePanelRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Throwable $e2) {}
+}
 $manualsellCounts = [];
 if (in_array('Manualsale', array_column($activePanelRows, 'type'))) {
-    foreach ($pdo->query("SELECT codepanel, COUNT(*) AS c FROM manualsell WHERE status = 'active' GROUP BY codepanel")->fetchAll(PDO::FETCH_ASSOC) as $msRow) {
-        $manualsellCounts[$msRow['codepanel']] = (int) $msRow['c'];
-    }
+    try {
+        foreach ($pdo->query("SELECT codepanel, COUNT(*) AS c FROM manualsell WHERE status = 'active' GROUP BY codepanel")->fetchAll(PDO::FETCH_ASSOC) as $msRow) {
+            $manualsellCounts[$msRow['codepanel']] = (int) $msRow['c'];
+        }
+    } catch (\Throwable $e) {}
 }
 $list_marzban_panel_users = ['inline_keyboard' => []];
-$panelcount = select("marzban_panel", "*", "status", "active", "count");
+$panelcount = count($activePanelRows);
 if ($panelcount > 10) {
     $temp_row = [];
     foreach ($activePanelRows as $result) {
-        if ($result['hide_user'] != null && in_array($from_id, json_decode($result['hide_user'], true)))
+        if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null))
             continue;
         if ($result['type'] == "Manualsale" && empty($manualsellCounts[$result['code_panel']]))
             continue;
@@ -625,7 +637,7 @@ if ($panelcount > 10) {
     foreach ($activePanelRows as $result) {
         if ($result['type'] == "Manualsale" && empty($manualsellCounts[$result['code_panel']]))
             continue;
-        if ($result['hide_user'] != null and in_array($from_id, json_decode($result['hide_user'], true)))
+        if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null))
             continue;
         if ($users['step'] == "getusernameinfo") {
             $list_marzban_panel_users['inline_keyboard'][] = [
@@ -658,7 +670,7 @@ $list_marzban_panel_user = json_encode($list_marzban_panel_users);
 //------------------  [ listpanelusers omdhe ]----------------//
 $list_marzban_panel_users_om = ['inline_keyboard' => []];
 foreach ($activePanelRows as $result) {
-    if ($result['hide_user'] != null and in_array($from_id, json_decode($result['hide_user'], true)))
+    if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null))
         continue;
     $list_marzban_panel_users_om['inline_keyboard'][] = [
         ['text' => $result['name_panel'], 'callback_data' => "locationom_{$result['code_panel']}"]
@@ -674,9 +686,9 @@ $list_marzban_panel_users_change = ['inline_keyboard' => []];
 if ($panelcount > 10) {
     $temp_row = [];
     foreach ($activePanelRows as $result) {
-        if ($result['name_panel'] == $users['Processing_value_four'])
+        if ($result['name_panel'] == ($users['Processing_value_four'] ?? ''))
             continue;
-        if ($result['hide_user'] != null && in_array($from_id, json_decode($result['hide_user'], true)))
+        if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null))
             continue;
 
         $temp_row[] = ['text' => $result['name_panel'], 'callback_data' => "changelocselectlo-{$result['code_panel']}"];
@@ -690,9 +702,9 @@ if ($panelcount > 10) {
     }
 } else {
     foreach ($activePanelRows as $result) {
-        if ($result['name_panel'] == $users['Processing_value_four'])
+        if ($result['name_panel'] == ($users['Processing_value_four'] ?? ''))
             continue;
-        if ($result['hide_user'] != null and in_array($from_id, json_decode($result['hide_user'], true)))
+        if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null))
             continue;
         $list_marzban_panel_users_change['inline_keyboard'][] = [
             ['text' => $result['name_panel'], 'callback_data' => "changelocselectlo-{$result['code_panel']}"]
@@ -706,16 +718,22 @@ $list_marzban_panel_userschange = json_encode($list_marzban_panel_users_change);
 
 
 //------------------  [ listpanelusers test ]----------------//
-$stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE TestAccount = 'ONTestAccount' AND (agent = :agent OR agent = 'all')");
-$stmt->bindValue(':agent', $users['agent'], PDO::PARAM_STR);
-$stmt->execute();
+try {
+    $stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE TestAccount = 'ONTestAccount' AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)");
+    $stmt->bindValue(':agent', $agentVal, PDO::PARAM_STR);
+    $stmt->execute();
+} catch (\Throwable $e) {
+    $stmt = $pdo->query("SELECT * FROM marzban_panel WHERE TestAccount = 'ONTestAccount'");
+}
 $list_marzban_panel_usertest = ['inline_keyboard' => []];
-while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    if ($result['hide_user'] != null and in_array($from_id, json_decode($result['hide_user'], true)))
-        continue;
-    $list_marzban_panel_usertest['inline_keyboard'][] = [
-        ['text' => $result['name_panel'], 'callback_data' => "locationtest_{$result['code_panel']}"]
-    ];
+if ($stmt) {
+    while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null))
+            continue;
+        $list_marzban_panel_usertest['inline_keyboard'][] = [
+            ['text' => $result['name_panel'], 'callback_data' => "locationtest_{$result['code_panel']}"]
+        ];
+    }
 }
 $list_marzban_panel_usertest['inline_keyboard'][] = [
     ['text' => $textbotlang['users']['backbtn'], 'callback_data' => "backuser"],
@@ -1332,8 +1350,7 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
     }
     $countorder = null;
     while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $hide_panel = json_decode($result['hide_panel'], true);
-        if (in_array($location, $hide_panel))
+        if (faoxima_is_in_json_list($location, $result['hide_panel'] ?? null))
             continue;
         if ($result['one_buy_status'] == "1") {
             if ($countorder === null) {
@@ -1367,7 +1384,7 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
 function KeyboardCategory($location, $agent, $backuser = "backuser")
 {
     global $pdo, $textbotlang;
-    $stmts = $pdo->prepare("SELECT category FROM product WHERE (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers') OR FIND_IN_SET(:agent, agent) > 0)");
+    $stmts = $pdo->prepare("SELECT category FROM product WHERE (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)");
     $stmts->bindValue(':location', (string)$location, PDO::PARAM_STR);
     $stmts->bindValue(':agent', (string)$agent, PDO::PARAM_STR);
     $stmts->execute();
@@ -1397,7 +1414,7 @@ function KeyboardCategory($location, $agent, $backuser = "backuser")
 function keyboardTimeCategory($name_panel, $agent, $callback_data = "producttime_", $callback_data_back = "backuser", $statuscustomvolume = false, $statusbtnextend = false)
 {
     global $pdo, $textbotlang;
-    $stmt = $pdo->prepare("SELECT (Service_time) FROM product WHERE (Location = :name_panel OR Location = '/all' OR FIND_IN_SET(:name_panel, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers') OR FIND_IN_SET(:agent, agent) > 0)");
+    $stmt = $pdo->prepare("SELECT (Service_time) FROM product WHERE (Location = :name_panel OR Location = '/all' OR FIND_IN_SET(:name_panel, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)");
     $stmt->bindValue(':name_panel', (string)$name_panel, PDO::PARAM_STR);
     $stmt->bindValue(':agent', (string)$agent, PDO::PARAM_STR);
     $stmt->execute();

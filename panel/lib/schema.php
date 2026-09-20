@@ -59,25 +59,68 @@ function faoxima_schema_ensure_column(PDO $pdo, string $table, string $column, s
 
 
 function faoxima_schema_ready(PDO $pdo): void {
-    if (!empty($_SESSION['__faoxima_schema_ok_v108'])) {
+    static $alreadyRun = false;
+    if ($alreadyRun) {
         return;
     }
+    if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['__faoxima_schema_ok_v110'])) {
+        $alreadyRun = true;
+        return;
+    }
+    $alreadyRun = true;
 
     if (!faoxima_schema_table_exists($pdo, 'marzban_panel')) {
         try {
             $pdo->exec("CREATE TABLE IF NOT EXISTS marzban_panel (
                 id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 code_panel VARCHAR(200) NULL,
-                name_panel VARCHAR(255) NULL,
-                status VARCHAR(500) NULL,
-                url_panel VARCHAR(500) NULL,
-                username_panel VARCHAR(255) NULL,
+                name_panel VARCHAR(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+                status VARCHAR(500) NULL DEFAULT 'active',
+                url_panel VARCHAR(2000) NULL,
+                username_panel VARCHAR(200) NULL,
                 password_panel TEXT NULL,
-                type VARCHAR(100) NULL,
+                agent VARCHAR(200) NULL DEFAULT 'all',
+                sublink VARCHAR(500) NULL DEFAULT 'onsublink',
+                config VARCHAR(500) NULL DEFAULT 'offconfig',
+                MethodUsername VARCHAR(700) NULL DEFAULT 'numericIdRandom',
+                TestAccount VARCHAR(100) NULL DEFAULT 'ONTestAccount',
+                limit_panel VARCHAR(100) NULL DEFAULT 'unlimted',
+                namecustom VARCHAR(100) NULL DEFAULT 'vpn',
+                Methodextend VARCHAR(100) NULL DEFAULT 'resetVolumeTime',
+                conecton VARCHAR(100) NULL DEFAULT 'offconecton',
+                linksubx VARCHAR(1000) NULL,
+                inboundid VARCHAR(100) NULL DEFAULT '1',
+                type VARCHAR(100) NULL DEFAULT 'marzban',
+                inboundstatus VARCHAR(100) NULL DEFAULT 'offinbounddisable',
+                inbound_deactive VARCHAR(100) NULL DEFAULT '0',
+                time_usertest VARCHAR(100) NULL DEFAULT '1',
+                val_usertest VARCHAR(100) NULL DEFAULT '100',
+                secret_code VARCHAR(200) NULL,
+                priceChangeloc VARCHAR(200) NULL DEFAULT '0',
+                priceextravolume VARCHAR(500) NULL,
+                pricecustomvolume VARCHAR(500) NULL,
+                pricecustomtime VARCHAR(500) NULL,
+                priceextratime VARCHAR(500) NULL,
+                mainvolume VARCHAR(500) NULL,
+                maxvolume VARCHAR(500) NULL,
+                maintime VARCHAR(500) NULL,
+                maxtime VARCHAR(500) NULL,
+                status_extend VARCHAR(100) NULL DEFAULT 'on_extend',
+                datelogin TEXT NULL,
+                proxies TEXT NULL,
+                inbounds TEXT NULL,
+                subvip VARCHAR(60) NULL DEFAULT 'offsubvip',
+                changeloc VARCHAR(60) NULL DEFAULT 'offchangeloc',
+                on_hold_test VARCHAR(60) NOT NULL DEFAULT '1',
+                version_panel VARCHAR(60) NOT NULL DEFAULT '0',
+                customvolume TEXT NULL,
+                hide_user TEXT NULL,
                 national_net_status VARCHAR(50) NOT NULL DEFAULT 'off_national_net',
                 stock_source_panel VARCHAR(191) NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+            error_log('[schema] marzban_panel create: ' . $e->getMessage());
+        }
     }
 
     if (!faoxima_schema_table_exists($pdo, 'product')) {
@@ -107,14 +150,74 @@ function faoxima_schema_ready(PDO $pdo): void {
         } catch (\Throwable $e) {}
     }
 
-    faoxima_schema_ensure_column(
-        $pdo, 'marzban_panel', 'national_net_status',
-        "VARCHAR(50) NOT NULL DEFAULT 'off_national_net'"
-    );
-    faoxima_schema_ensure_column(
-        $pdo, 'marzban_panel', 'stock_source_panel',
-        "VARCHAR(191) NULL"
-    );
+    // Marzban panel columns self-healing
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'code_panel', "VARCHAR(200) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'name_panel', "VARCHAR(2000) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'status', "VARCHAR(500) NULL DEFAULT 'active'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'url_panel', "VARCHAR(2000) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'username_panel', "VARCHAR(200) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'password_panel', "TEXT NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'agent', "VARCHAR(200) NULL DEFAULT 'all'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'sublink', "VARCHAR(500) NULL DEFAULT 'onsublink'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'config', "VARCHAR(500) NULL DEFAULT 'offconfig'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'MethodUsername', "VARCHAR(700) NULL DEFAULT 'numericIdRandom'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'TestAccount', "VARCHAR(100) NULL DEFAULT 'ONTestAccount'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'limit_panel', "VARCHAR(100) NULL DEFAULT 'unlimted'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'namecustom', "VARCHAR(100) NULL DEFAULT 'vpn'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'Methodextend', "VARCHAR(100) NULL DEFAULT 'resetVolumeTime'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'conecton', "VARCHAR(100) NULL DEFAULT 'offconecton'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'linksubx', "VARCHAR(1000) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'inboundid', "VARCHAR(100) NULL DEFAULT '1'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'type', "VARCHAR(100) NULL DEFAULT 'marzban'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'inboundstatus', "VARCHAR(100) NULL DEFAULT 'offinbounddisable'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'inbound_deactive', "VARCHAR(100) NULL DEFAULT '0'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'time_usertest', "VARCHAR(100) NULL DEFAULT '1'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'val_usertest', "VARCHAR(100) NULL DEFAULT '100'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'secret_code', "VARCHAR(200) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'priceChangeloc', "VARCHAR(200) NULL DEFAULT '0'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'priceextravolume', "VARCHAR(500) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'pricecustomvolume', "VARCHAR(500) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'pricecustomtime', "VARCHAR(500) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'priceextratime', "VARCHAR(500) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'mainvolume', "VARCHAR(500) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'maxvolume', "VARCHAR(500) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'maintime', "VARCHAR(500) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'maxtime', "VARCHAR(500) NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'status_extend', "VARCHAR(100) NULL DEFAULT 'on_extend'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'datelogin', "TEXT NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'proxies', "TEXT NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'inbounds', "TEXT NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'subvip', "VARCHAR(60) NULL DEFAULT 'offsubvip'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'changeloc', "VARCHAR(60) NULL DEFAULT 'offchangeloc'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'on_hold_test', "VARCHAR(60) NOT NULL DEFAULT '1'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'version_panel', "VARCHAR(60) NOT NULL DEFAULT '0'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'customvolume', "TEXT NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'hide_user', "TEXT NULL");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'national_net_status', "VARCHAR(50) NOT NULL DEFAULT 'off_national_net'");
+    faoxima_schema_ensure_column($pdo, 'marzban_panel', 'stock_source_panel', "VARCHAR(191) NULL");
+
+    // Repair inconsistent or missing values in panels & products
+    try {
+        $pdo->exec("UPDATE marzban_panel SET agent = 'all' WHERE agent IS NULL OR agent = ''");
+        $pdo->exec("UPDATE marzban_panel SET hide_user = '[]' WHERE hide_user IS NULL OR hide_user = ''");
+        $pdo->exec("UPDATE marzban_panel SET customvolume = '{\"f\":\"0\",\"n\":\"0\",\"n2\":\"0\"}' WHERE customvolume IS NULL OR customvolume = ''");
+        $pdo->exec("UPDATE product SET hide_panel = '[]' WHERE hide_panel IS NULL OR hide_panel = '' OR hide_panel = '{}'");
+        $pdo->exec("UPDATE product SET agent = 'all' WHERE agent IS NULL OR agent = ''");
+    } catch (\Throwable $e) {}
+
+    // Auto-seed default panel if none exists
+    try {
+        $panelCnt = (int)$pdo->query("SELECT COUNT(*) FROM marzban_panel")->fetchColumn();
+        if ($panelCnt === 0) {
+            $seedPanel = $pdo->prepare("INSERT INTO marzban_panel (code_panel, name_panel, status, url_panel, username_panel, password_panel, agent, MethodUsername, TestAccount, limit_panel, sublink, config, type, customvolume, hide_user) VALUES (:cp, :np, 'active', '', '', '', 'all', 'numericIdRandom', 'ONTestAccount', 'unlimted', 'onsublink', 'offconfig', 'marzban', :cv, '[]')");
+            $seedPanel->execute([
+                ':cp' => 'default_main',
+                ':np' => 'سرور اصلی',
+                ':cv' => json_encode(['f' => '0', 'n' => '0', 'n2' => '0'])
+            ]);
+        }
+    } catch (\Throwable $e) {}
+
     faoxima_schema_ensure_column(
         $pdo, 'setting', 'redis_enabled',
         "VARCHAR(20) NOT NULL DEFAULT '0'"
@@ -475,7 +578,9 @@ function faoxima_schema_ready(PDO $pdo): void {
     }
 
 
-    $_SESSION['__faoxima_schema_ok_v108'] = true;
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        $_SESSION['__faoxima_schema_ok_v110'] = true;
+    }
 }
 
 }
