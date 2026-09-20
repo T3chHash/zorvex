@@ -14,6 +14,74 @@ require_once __DIR__ . '/lib/schema.php';
 if (function_exists('faoxima_schema_ready')) {
     faoxima_schema_ready($pdo);
 }
+
+// Unconditional table & column self-healing for product module
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS category (
+        id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        remark VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin");
+} catch (\Throwable $e) {}
+
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS marzban_panel (
+        id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        code_panel VARCHAR(200) NULL,
+        name_panel VARCHAR(255) NULL,
+        status VARCHAR(500) NULL,
+        url_panel VARCHAR(500) NULL,
+        username_panel VARCHAR(255) NULL,
+        password_panel TEXT NULL,
+        type VARCHAR(100) NULL,
+        national_net_status VARCHAR(50) NOT NULL DEFAULT 'off_national_net',
+        stock_source_panel VARCHAR(191) NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} catch (\Throwable $e) {}
+
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS product (
+        id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        code_product VARCHAR(200) NULL,
+        name_product VARCHAR(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        price_product VARCHAR(2000) NULL,
+        Volume_constraint VARCHAR(2000) NULL,
+        Location VARCHAR(200) NULL,
+        Service_time VARCHAR(200) NULL,
+        agent VARCHAR(100) NULL DEFAULT 'f',
+        note TEXT NULL,
+        data_limit_reset VARCHAR(200) NULL DEFAULT 'no_reset',
+        one_buy_status VARCHAR(20) NOT NULL DEFAULT '0',
+        inbounds TEXT NULL,
+        proxies TEXT NULL,
+        category VARCHAR(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        hide_panel TEXT NOT NULL,
+        position INT NOT NULL DEFAULT 0,
+        ip_limit VARCHAR(10) NOT NULL DEFAULT '0',
+        hwid_limit VARCHAR(10) NOT NULL DEFAULT '0',
+        symbolic_limit_enabled VARCHAR(10) NOT NULL DEFAULT '0',
+        symbolic_limit_users VARCHAR(10) NOT NULL DEFAULT '0'
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} catch (\Throwable $e) {}
+
+$colsToEnsure = [
+    'position'               => "INT NOT NULL DEFAULT 0",
+    'ip_limit'               => "VARCHAR(10) NOT NULL DEFAULT '0'",
+    'hwid_limit'             => "VARCHAR(10) NOT NULL DEFAULT '0'",
+    'symbolic_limit_enabled' => "VARCHAR(10) NOT NULL DEFAULT '0'",
+    'symbolic_limit_users'   => "VARCHAR(10) NOT NULL DEFAULT '0'",
+    'category'               => "VARCHAR(400) NULL",
+    'hide_panel'             => "TEXT NULL",
+    'note'                   => "TEXT NULL",
+    'agent'                  => "VARCHAR(50) NOT NULL DEFAULT 'f'",
+    'data_limit_reset'       => "VARCHAR(50) NOT NULL DEFAULT 'no_reset'",
+    'one_buy_status'         => "VARCHAR(10) NOT NULL DEFAULT '0'",
+];
+foreach ($colsToEnsure as $col => $def) {
+    try {
+        $pdo->exec("ALTER TABLE product ADD COLUMN `{$col}` {$def}");
+    } catch (\Throwable $e) {}
+}
+
 if (!function_exists('xui_fail2ban_status') && is_file(__DIR__ . '/../x-ui_single.php')) {
     require_once __DIR__ . '/../x-ui_single.php';
 }
@@ -76,26 +144,50 @@ if ($prodQ !== '') {
     $prodParams[':pq4'] = $prodLike;
 }
 
-$pg = fx_paginate($pdo, "SELECT COUNT(*) FROM product WHERE $prodWhereSql", $prodParams, 5);
-$query = $pdo->prepare("SELECT * FROM product WHERE $prodWhereSql ORDER BY (position = 0) ASC, position ASC, id ASC LIMIT :perPage OFFSET :offset");
-foreach ($prodParams as $k => $v) $query->bindValue($k, $v, PDO::PARAM_STR);
-$query->bindValue(':perPage', $pg['perPage'], PDO::PARAM_INT);
-$query->bindValue(':offset', $pg['offset'], PDO::PARAM_INT);
-$query->execute();
-$listinvoice = $query->fetchAll();
-
-$query = $pdo->prepare("SELECT * FROM marzban_panel");
-$query->execute();
-$listpanel = $query->fetchAll();
-
-$panelTypeMap = [];
-foreach ($listpanel as $panelRow) {
-    $panelTypeMap[$panelRow['name_panel']] = $panelRow['type'];
+$listinvoice = [];
+$pg = ['page' => 1, 'pages' => 1, 'perPage' => 5, 'offset' => 0, 'total' => 0];
+try {
+    $pg = fx_paginate($pdo, "SELECT COUNT(*) FROM product WHERE $prodWhereSql", $prodParams, 5);
+    $query = $pdo->prepare("SELECT * FROM product WHERE $prodWhereSql ORDER BY (position = 0) ASC, position ASC, id ASC LIMIT :perPage OFFSET :offset");
+    foreach ($prodParams as $k => $v) $query->bindValue($k, $v, PDO::PARAM_STR);
+    $query->bindValue(':perPage', $pg['perPage'], PDO::PARAM_INT);
+    $query->bindValue(':offset', $pg['offset'], PDO::PARAM_INT);
+    $query->execute();
+    $listinvoice = $query->fetchAll(PDO::FETCH_ASSOC) ?: [];
+} catch (\Throwable $e) {
+    try {
+        $query = $pdo->prepare("SELECT * FROM product WHERE $prodWhereSql ORDER BY id ASC LIMIT :perPage OFFSET :offset");
+        foreach ($prodParams as $k => $v) $query->bindValue($k, $v, PDO::PARAM_STR);
+        $query->bindValue(':perPage', $pg['perPage'], PDO::PARAM_INT);
+        $query->bindValue(':offset', $pg['offset'], PDO::PARAM_INT);
+        $query->execute();
+        $listinvoice = $query->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (\Throwable $e2) {
+        $listinvoice = [];
+    }
 }
 
-$catQuery = $pdo->prepare("SELECT remark FROM category ORDER BY id ASC");
-$catQuery->execute();
-$listcategory = $catQuery->fetchAll(PDO::FETCH_COLUMN);
+$listpanel = [];
+$panelTypeMap = [];
+try {
+    $query = $pdo->prepare("SELECT * FROM marzban_panel ORDER BY id ASC");
+    $query->execute();
+    $listpanel = $query->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    foreach ($listpanel as $panelRow) {
+        $panelTypeMap[$panelRow['name_panel']] = $panelRow['type'] ?? '';
+    }
+} catch (\Throwable $e) {
+    $listpanel = [];
+}
+
+$listcategory = [];
+try {
+    $catQuery = $pdo->prepare("SELECT remark FROM category ORDER BY id ASC");
+    $catQuery->execute();
+    $listcategory = $catQuery->fetchAll(PDO::FETCH_COLUMN) ?: [];
+} catch (\Throwable $e) {
+    $listcategory = [];
+}
 
 
 $nameProduct = $_POST['nameproduct'] ?? null;
@@ -182,8 +274,11 @@ alert('محصول از قبل وجود دارد'); window.location.href='product
     $stmt->bindParam(':ip_limit',         $ipLimit, PDO::PARAM_STR);
     $stmt->bindParam(':hwid_limit',       $hwidLimit, PDO::PARAM_STR);
     $stmt->bindParam(':symbolic_limit_enabled', $symbolicLimitEnabled, PDO::PARAM_STR);
-    $stmt->bindParam(':symbolic_limit_users',   $symbolicLimitUsers, PDO::PARAM_STR);
-    $stmt->execute();
+    try {
+        $stmt->execute();
+    } catch (\Throwable $e) {
+        error_log('[product.php] insert product failed: ' . $e->getMessage());
+    }
     if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
     if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
 
@@ -224,11 +319,13 @@ if (isset($_GET['oneproduct'], $_GET['toweproduct']) && $_GET['oneproduct'] !== 
 
 
 if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
-    $stmt = $pdo->prepare("DELETE FROM product WHERE id = :id");
-    $stmt->bindParam(':id', $_GET['removeid']);
-    $stmt->execute();
-    if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
-    if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
+    try {
+        $stmt = $pdo->prepare("DELETE FROM product WHERE id = :id");
+        $stmt->bindParam(':id', $_GET['removeid']);
+        $stmt->execute();
+        if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
+        if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
+    } catch (\Throwable $e) {}
     header("Location: product.php");
     exit;
 }

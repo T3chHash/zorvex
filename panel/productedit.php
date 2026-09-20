@@ -10,6 +10,14 @@ if (function_exists('faoxima_schema_ready')) {
     faoxima_schema_ready($pdo);
 }
 
+// Self-healing table check
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS category (
+        id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        remark VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin");
+} catch (\Throwable $e) {}
+
 $query = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
 $query->execute([$_SESSION["user"] ?? "", $_SESSION["user"] ?? ""]);
 $result = $query->fetch(PDO::FETCH_ASSOC);
@@ -21,21 +29,29 @@ if (!isset($_SESSION["user"]) || !$result) {
 
 $statusmessage = false;
 $infomesssage  = "";
-$id_product    = htmlspecialchars($_GET['id'], ENT_QUOTES, 'UTF-8');
-$product       = select("product", "*", "id", $id_product, "select");
+$id_product    = htmlspecialchars($_GET['id'] ?? '', ENT_QUOTES, 'UTF-8');
+$product       = null;
+try {
+    $product = select("product", "*", "id", $id_product, "select");
+} catch (\Throwable $e) {}
 
-$panelQuery = $pdo->prepare("SELECT name_panel, type FROM marzban_panel ORDER BY id ASC");
-$panelQuery->execute();
-$listpanel = $panelQuery->fetchAll(PDO::FETCH_ASSOC);
-
+$listpanel = [];
 $panelTypeMap = [];
-foreach ($listpanel as $panelRow) {
-    $panelTypeMap[$panelRow['name_panel']] = $panelRow['type'];
-}
+try {
+    $panelQuery = $pdo->prepare("SELECT name_panel, type FROM marzban_panel ORDER BY id ASC");
+    $panelQuery->execute();
+    $listpanel = $panelQuery->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    foreach ($listpanel as $panelRow) {
+        $panelTypeMap[$panelRow['name_panel']] = $panelRow['type'] ?? '';
+    }
+} catch (\Throwable $e) {}
 
-$catQuery = $pdo->prepare("SELECT remark FROM category ORDER BY id ASC");
-$catQuery->execute();
-$listcategory = $catQuery->fetchAll(PDO::FETCH_COLUMN);
+$listcategory = [];
+try {
+    $catQuery = $pdo->prepare("SELECT remark FROM category ORDER BY id ASC");
+    $catQuery->execute();
+    $listcategory = $catQuery->fetchAll(PDO::FETCH_COLUMN) ?: [];
+} catch (\Throwable $e) {}
 
 if ($product == false) {
     $statusmessage = true;

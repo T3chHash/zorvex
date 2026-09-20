@@ -59,10 +59,53 @@ function faoxima_schema_ensure_column(PDO $pdo, string $table, string $column, s
 
 
 function faoxima_schema_ready(PDO $pdo): void {
-    if (!empty($_SESSION['__faoxima_schema_ok'])) {
+    if (!empty($_SESSION['__faoxima_schema_ok_v107'])) {
         return;
     }
 
+    if (!faoxima_schema_table_exists($pdo, 'marzban_panel')) {
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS marzban_panel (
+                id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                code_panel VARCHAR(200) NULL,
+                name_panel VARCHAR(255) NULL,
+                status VARCHAR(500) NULL,
+                url_panel VARCHAR(500) NULL,
+                username_panel VARCHAR(255) NULL,
+                password_panel TEXT NULL,
+                type VARCHAR(100) NULL,
+                national_net_status VARCHAR(50) NOT NULL DEFAULT 'off_national_net',
+                stock_source_panel VARCHAR(191) NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } catch (\Throwable $e) {}
+    }
+
+    if (!faoxima_schema_table_exists($pdo, 'product')) {
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS product (
+                id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                code_product VARCHAR(200) NULL,
+                name_product VARCHAR(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+                price_product VARCHAR(2000) NULL,
+                Volume_constraint VARCHAR(2000) NULL,
+                Location VARCHAR(200) NULL,
+                Service_time VARCHAR(200) NULL,
+                agent VARCHAR(100) NULL DEFAULT 'f',
+                note TEXT NULL,
+                data_limit_reset VARCHAR(200) NULL DEFAULT 'no_reset',
+                one_buy_status VARCHAR(20) NOT NULL DEFAULT '0',
+                inbounds TEXT NULL,
+                proxies TEXT NULL,
+                category VARCHAR(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+                hide_panel TEXT NOT NULL,
+                position INT NOT NULL DEFAULT 0,
+                ip_limit VARCHAR(10) NOT NULL DEFAULT '0',
+                hwid_limit VARCHAR(10) NOT NULL DEFAULT '0',
+                symbolic_limit_enabled VARCHAR(10) NOT NULL DEFAULT '0',
+                symbolic_limit_users VARCHAR(10) NOT NULL DEFAULT '0'
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } catch (\Throwable $e) {}
+    }
 
     faoxima_schema_ensure_column(
         $pdo, 'marzban_panel', 'national_net_status',
@@ -432,7 +475,7 @@ function faoxima_schema_ready(PDO $pdo): void {
     }
 
 
-    $_SESSION['__faoxima_schema_ok'] = true;
+    $_SESSION['__faoxima_schema_ok_v107'] = true;
 }
 
 }
