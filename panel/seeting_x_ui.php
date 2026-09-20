@@ -46,25 +46,8 @@ function synchronizeXuiPanels(PDO $pdo)
 
 synchronizeXuiPanels($pdo);
 
-function update($table, $field, $newValue, $whereField = null, $whereValue = null) {
-    global $pdo,$user;
-
-    if ($whereField !== null) {
-        $stmt = $pdo->prepare("SELECT $field FROM $table WHERE $whereField = ? FOR UPDATE");
-        $stmt->execute([$whereValue]);
-        $currentValue = $stmt->fetchColumn();
-        $stmt = $pdo->prepare("UPDATE $table SET $field = ? WHERE $whereField = ?");
-        $stmt->execute([$newValue, $whereValue]);
-    } else {
-        $stmt = $pdo->prepare("UPDATE $table SET $field = ?");
-        $stmt->execute([$newValue]);
-    }
-    $date = date("Y-m-d");
-    $logss = "{$table}_{$field}_{$newValue}_{$whereField}_{$whereValue}_{$user['step']}_$date";
-    if($field != "message_count" || $field != "last_message_time"){
-        file_put_contents('log.txt',"\n".$logss,FILE_APPEND);
-    }
-}
+require_once __DIR__ . '/../function.php';
+require_once __DIR__ . '/lib/icons.php';
 
 $query = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
 $query->execute([$_SESSION["user"] ?? "", $_SESSION["user"] ?? ""]);

@@ -106,6 +106,12 @@ if (!$tableMissing && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_s
             }
         }
     }
+    if (function_exists('clearSelectCache')) {
+        clearSelectCache('shopSetting');
+    }
+    if (function_exists('zorvex_bust_bot_selectcache')) {
+        zorvex_bust_bot_selectcache('shopSetting');
+    }
     header('Location: shopsettings.php?saved=' . $savedCount);
     exit;
 }

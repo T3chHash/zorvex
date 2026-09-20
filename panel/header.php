@@ -18,7 +18,7 @@ if (session_status() === PHP_SESSION_NONE) {
 // Panel version (read from the project root `version` file). Displayed in the
 // sidebar footer on every page. Always shown with a leading "v".
 $__panelVersionRaw = trim((string)@file_get_contents(__DIR__ . '/../version'));
-if ($__panelVersionRaw === '') $__panelVersionRaw = '1.0.4';
+if ($__panelVersionRaw === '') $__panelVersionRaw = '1.0.5';
 $__panelVersion = (stripos($__panelVersionRaw, 'v') === 0) ? $__panelVersionRaw : ('v' . $__panelVersionRaw);
 
 if (isset($_SESSION["user"])) {
@@ -502,6 +502,7 @@ $__hdr_notif_total = $__hdr_new_orders + $__hdr_open_tickets;
                 <ul class="sidebar-menu">
                     <li><a href="stock.php"><span class="menu-symbol"><?php echo icon('package', 'svg-icon'); ?></span><span>انبار شبکه ملی</span></a></li>
                     <li><a href="manual_service.php"><span class="menu-symbol"><?php echo icon('cart-check', 'svg-icon'); ?></span><span>فروش دستی</span></a></li>
+                    <li><a href="seeting_x_ui.php"><span class="menu-symbol"><?php echo icon('server', 'svg-icon'); ?></span><span>تنظیمات کانفیگ X-UI</span></a></li>
                 </ul>
             </div>
         </div>
@@ -515,6 +516,9 @@ $__hdr_notif_total = $__hdr_new_orders + $__hdr_open_tickets;
             </button>
             <div class="nav-group__panel">
                 <ul class="sidebar-menu">
+                    <li><a href="finance.php"><span class="menu-symbol"><?php echo icon('wallet', 'svg-icon'); ?></span><span>درگاه‌ها و امور مالی</span></a></li>
+                    <li><a href="shopsettings.php"><span class="menu-symbol"><?php echo icon('package', 'svg-icon'); ?></span><span>قابلیت‌های فروشگاه</span></a></li>
+                    <li><a href="broadcast.php"><span class="menu-symbol"><?php echo icon('send', 'svg-icon'); ?></span><span>ارسال پیام همگانی</span></a></li>
                     <li><a href="textbot.php"><span class="menu-symbol"><?php echo icon('text', 'svg-icon'); ?></span><span>متن‌های ربات</span></a></li>
                     <li><a href="keyboard.php"><span class="menu-symbol"><?php echo icon('keyboard', 'svg-icon'); ?></span><span>چیدمان کیبورد</span></a></li>
                     <li><a href="service_keyboard.php"><span class="menu-symbol"><?php echo icon('palette', 'svg-icon'); ?></span><span>رنگ‌بندی دکمه‌ها</span></a></li>
@@ -549,7 +553,7 @@ $__hdr_notif_total = $__hdr_new_orders + $__hdr_open_tickets;
         var ticketsUnseen = bw.getAttribute('data-tickets-unseen') === '1';
         var bellBadge = notifWrap.querySelector('.hdr-bell__badge');
         var orderSeen = 0;
-        try { orderSeen = parseInt(localStorage.getItem('faoxima_notif_seen'), 10) || 0; } catch (e) {}
+        try { orderSeen = parseInt(localStorage.getItem('zorvex_notif_seen') || localStorage.getItem('faoxima_notif_seen'), 10) || 0; } catch (e) {}
         var orderUnseen = orderLatest > 0 && orderLatest > orderSeen;
         if (bellBadge && (ticketsUnseen || orderUnseen)) {
             bellBadge.hidden = false;
@@ -560,7 +564,10 @@ $__hdr_notif_total = $__hdr_new_orders + $__hdr_open_tickets;
             notifTrigger.addEventListener('click', function (ev) {
                 ev.stopPropagation();
                 notifWrap.classList.toggle('open');
-                try { localStorage.setItem('faoxima_notif_seen', String(orderLatest)); } catch (e) {}
+                try {
+                    localStorage.setItem('zorvex_notif_seen', String(orderLatest));
+                    localStorage.setItem('faoxima_notif_seen', String(orderLatest));
+                } catch (e) {}
                 if (ticketsUnseen) {
                     ticketsUnseen = false;
                     try { fetch('tickets.php?ajax=mark_ticket_seen', { method: 'POST', credentials: 'same-origin' }); } catch (e) {}

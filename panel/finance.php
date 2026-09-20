@@ -16,6 +16,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../function.php';
 require_once __DIR__ . '/lib/icons.php';
 require_once __DIR__ . '/../re/rx/function/database_helpers_1.php';
 
@@ -164,7 +165,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_save'])) {
                     );
                     $stmt->execute([':k' => $key, ':v' => $new]);
                     $savedCount++;
-                    if (function_exists('faoxima_bust_bot_selectcache')) {
+                    if (function_exists('zorvex_bust_bot_selectcache')) {
+                        zorvex_bust_bot_selectcache('textbot');
+                    } elseif (function_exists('faoxima_bust_bot_selectcache')) {
                         faoxima_bust_bot_selectcache('textbot');
                     }
                     if (function_exists('clearSelectCache')) {
@@ -196,7 +199,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_save'])) {
                 );
                 $stmt->execute([':k' => $key, ':v' => $new]);
                 $savedCount++;
-                if (function_exists('faoxima_bust_bot_selectcache')) {
+                if (function_exists('zorvex_bust_bot_selectcache')) {
+                    zorvex_bust_bot_selectcache('PaySetting');
+                } elseif (function_exists('faoxima_bust_bot_selectcache')) {
                     faoxima_bust_bot_selectcache('PaySetting');
                 }
                 if (function_exists('clearSelectCache')) {

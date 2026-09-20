@@ -145,6 +145,8 @@ if ($product == false) {
         }
 
         if (!$statusmessage) {
+            if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
+            if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
             header('Location: product.php');
             exit;
         }

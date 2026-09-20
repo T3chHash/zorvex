@@ -358,6 +358,7 @@ function ensureColumnExistsForUpdate($tableName, $fieldName, $valueSample = null
         error_log('Failed to ensure column exists: ' . $e->getMessage());
     }
 }
+if (!function_exists('update')) {
 function update($table, $field, $newValue, $whereField = null, $whereValue = null)
 {
     global $pdo, $user;
@@ -421,6 +422,7 @@ function update($table, $field, $newValue, $whereField = null, $whereValue = nul
     }
 
     clearSelectCache($table);
+}
 }
 function &getSelectCacheStore()
 {

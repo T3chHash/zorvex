@@ -76,6 +76,98 @@ function faoxima_schema_ready(PDO $pdo): void {
         $pdo, 'setting', 'redis_enabled',
         "VARCHAR(20) NOT NULL DEFAULT '0'"
     );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'receipt_topic_reporting',
+        "VARCHAR(10) NOT NULL DEFAULT '1'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'subscription_link_button',
+        "VARCHAR(10) NOT NULL DEFAULT '1'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'PublicLog_Status',
+        "VARCHAR(10) NOT NULL DEFAULT '0'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'PublicLog_Channel',
+        "VARCHAR(255) NULL"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'PublicLog_NewSub',
+        "VARCHAR(10) NOT NULL DEFAULT '1'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'PublicLog_Renewal',
+        "VARCHAR(10) NOT NULL DEFAULT '1'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'PublicLog_VolumeTopup',
+        "VARCHAR(10) NOT NULL DEFAULT '1'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'PublicLog_TimeExtra',
+        "VARCHAR(10) NOT NULL DEFAULT '1'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'PublicLog_WalletDeposit',
+        "VARCHAR(10) NOT NULL DEFAULT '1'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'banner_start_status',
+        "VARCHAR(10) NOT NULL DEFAULT 'off'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'banner_start_file_id',
+        "VARCHAR(255) NULL"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'banner_cart_status',
+        "VARCHAR(10) NOT NULL DEFAULT 'off'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'banner_cart_file_id',
+        "VARCHAR(255) NULL"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'banner_buy_status',
+        "VARCHAR(10) NOT NULL DEFAULT 'off'"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'banner_buy_file_id',
+        "VARCHAR(255) NULL"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'keyboardmain',
+        "LONGTEXT NULL"
+    );
+    faoxima_schema_ensure_column(
+        $pdo, 'setting', 'text_edit',
+        "LONGTEXT NULL"
+    );
+
+    if (!faoxima_schema_table_exists($pdo, 'textbot')) {
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS textbot (
+                id_text VARCHAR(191) PRIMARY KEY NOT NULL,
+                text LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } catch (\Throwable $e) {
+            error_log('[schema] textbot: ' . $e->getMessage());
+        }
+    }
+
+    if (!faoxima_schema_table_exists($pdo, 'x_ui')) {
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS x_ui (
+                codepanel VARCHAR(100) NOT NULL,
+                setting LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+                protocol VARCHAR(100) DEFAULT NULL,
+                PRIMARY KEY (codepanel)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } catch (\Throwable $e) {
+            error_log('[schema] x_ui: ' . $e->getMessage());
+        }
+    }
 
 
     if (!faoxima_schema_table_exists($pdo, 'crypto_wallets')) {

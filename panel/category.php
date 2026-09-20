@@ -29,6 +29,8 @@ if (!empty($_POST['action']) && $_POST['action'] === 'add') {
         if ((int)$stmt->fetchColumn() === 0) {
             $stmt = $pdo->prepare("INSERT IGNORE INTO category (remark) VALUES (:remark)");
             $stmt->execute([':remark' => $remark]);
+            if (function_exists('clearSelectCache')) { clearSelectCache('category'); clearSelectCache('product'); }
+            if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('category'); }
         }
     }
     header('Location: category.php');
@@ -45,9 +47,19 @@ if (!empty($_POST['action']) && $_POST['action'] === 'edit') {
         $pdo->prepare("UPDATE category SET remark = :remark WHERE id = :id")
             ->execute([':remark' => $remark, ':id' => $id]);
         if ($oldRemark !== '' && $oldRemark !== $remark) {
-            $pdo->prepare("UPDATE product SET category = :new WHERE category = :old")
-                ->execute([':new' => $remark, ':old' => $oldRemark]);
+            // Update single or comma-separated references in product table
+            $allProds = $pdo->query("SELECT id, category FROM product WHERE FIND_IN_SET(" . $pdo->quote($oldRemark) . ", category) > 0 OR category = " . $pdo->quote($oldRemark))->fetchAll(PDO::FETCH_ASSOC);
+            $updProd = $pdo->prepare("UPDATE product SET category = :c WHERE id = :pid");
+            foreach ($allProds as $pRow) {
+                $pCats = explode(',', (string)($pRow['category'] ?? ''));
+                $newCats = array_map(function($c) use ($oldRemark, $remark) {
+                    return trim($c) === $oldRemark ? $remark : trim($c);
+                }, $pCats);
+                $updProd->execute([':c' => implode(',', array_unique(array_filter($newCats))), ':pid' => $pRow['id']]);
+            }
         }
+        if (function_exists('clearSelectCache')) { clearSelectCache('category'); clearSelectCache('product'); }
+        if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('category'); }
     }
     header('Location: category.php');
     exit;
@@ -57,6 +69,8 @@ if (!empty($_POST['action']) && $_POST['action'] === 'delete') {
     $id = (int)($_POST['id'] ?? 0);
     if ($id > 0) {
         $pdo->prepare("DELETE FROM category WHERE id = :id")->execute([':id' => $id]);
+        if (function_exists('clearSelectCache')) { clearSelectCache('category'); clearSelectCache('product'); }
+        if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('category'); }
     }
     header('Location: category.php');
     exit;
@@ -65,6 +79,8 @@ if (!empty($_POST['action']) && $_POST['action'] === 'delete') {
 if (!empty($_POST['action']) && $_POST['action'] === 'bulk_delete') {
     $requestedIds = $_POST['ids'] ?? [];
     $deletedCount = fx_bulk_delete_ids($pdo, 'category', 'id', $requestedIds);
+    if (function_exists('clearSelectCache')) { clearSelectCache('category'); clearSelectCache('product'); }
+    if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('category'); }
     fx_bulk_delete_redirect('category.php', count($requestedIds), $deletedCount);
 }
 

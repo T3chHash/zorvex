@@ -29,13 +29,20 @@ $fields = [
 ];
 
 $values = array_fill_keys(array_keys($fields), '1');
-$row = $pdo->query('SELECT receipt_topic_reporting, subscription_link_button FROM setting LIMIT 1')->fetch(PDO::FETCH_ASSOC);
-if (is_array($row)) {
-    foreach ($values as $key => $default) {
-        if (array_key_exists($key, $row) && $row[$key] !== null && $row[$key] !== '') {
-            $values[$key] = (string)$row[$key];
+try {
+    // Ensure columns exist
+    $pdo->exec("ALTER TABLE `setting` ADD COLUMN IF NOT EXISTS `receipt_topic_reporting` VARCHAR(10) NOT NULL DEFAULT '1'");
+    $pdo->exec("ALTER TABLE `setting` ADD COLUMN IF NOT EXISTS `subscription_link_button` VARCHAR(10) NOT NULL DEFAULT '1'");
+    $row = $pdo->query('SELECT receipt_topic_reporting, subscription_link_button FROM setting LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+    if (is_array($row)) {
+        foreach ($values as $key => $default) {
+            if (array_key_exists($key, $row) && $row[$key] !== null && $row[$key] !== '') {
+                $values[$key] = (string)$row[$key];
+            }
         }
     }
+} catch (\Throwable $e) {
+    error_log('[panel/miscsettings] query error: ' . $e->getMessage());
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -48,12 +55,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($fields as $key => $label) {
         $newValues[$key] = isset($_POST['f_' . $key]) ? '1' : '0';
     }
-    $stmt = $pdo->prepare('UPDATE setting SET receipt_topic_reporting = :receipt, subscription_link_button = :subscription');
-    $stmt->execute([
-        ':receipt' => $newValues['receipt_topic_reporting'],
-        ':subscription' => $newValues['subscription_link_button'],
-    ]);
-    if (function_exists('faoxima_bust_bot_selectcache')) {
+    try {
+        $stmt = $pdo->prepare('UPDATE setting SET receipt_topic_reporting = :receipt, subscription_link_button = :subscription');
+        $stmt->execute([
+            ':receipt' => $newValues['receipt_topic_reporting'],
+            ':subscription' => $newValues['subscription_link_button'],
+        ]);
+    } catch (\Throwable $e) {
+        error_log('[panel/miscsettings] update error: ' . $e->getMessage());
+    }
+    if (function_exists('zorvex_bust_bot_selectcache')) {
+        zorvex_bust_bot_selectcache('setting');
+    } elseif (function_exists('faoxima_bust_bot_selectcache')) {
         faoxima_bust_bot_selectcache('setting');
     }
     if (function_exists('clearSelectCache')) {

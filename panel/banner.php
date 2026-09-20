@@ -132,6 +132,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_save'])) {
     }
 
     if (empty($formErrors)) {
+        if (function_exists('clearSelectCache')) {
+            clearSelectCache('setting');
+        }
+        if (function_exists('zorvex_bust_bot_selectcache')) {
+            zorvex_bust_bot_selectcache('setting');
+        }
         header('Location: banner.php?saved=' . $savedCount);
         exit;
     }

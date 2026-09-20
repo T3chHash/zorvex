@@ -55,6 +55,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'fail2ban_check') {
 if (!empty($_POST['action']) && $_POST['action'] === 'bulk_delete') {
     $requestedIds = $_POST['ids'] ?? [];
     $deletedCount = fx_bulk_delete_ids($pdo, 'product', 'id', $requestedIds);
+    if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
+    if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
     fx_bulk_delete_redirect('product.php', count($requestedIds), $deletedCount);
 }
 
@@ -178,6 +180,8 @@ alert('محصول از قبل وجود دارد'); window.location.href='product
     $stmt->bindParam(':symbolic_limit_enabled', $symbolicLimitEnabled, PDO::PARAM_STR);
     $stmt->bindParam(':symbolic_limit_users',   $symbolicLimitUsers, PDO::PARAM_STR);
     $stmt->execute();
+    if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
+    if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
 
     header("Location: product.php");
     exit;
@@ -204,6 +208,8 @@ if (isset($_GET['oneproduct'], $_GET['toweproduct']) && $_GET['oneproduct'] !== 
                 $setPos->execute([$posOf[$id1], $id2]);
             }
             $pdo->commit();
+            if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
+            if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
         } catch (\Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
         }
@@ -217,6 +223,8 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
     $stmt = $pdo->prepare("DELETE FROM product WHERE id = :id");
     $stmt->bindParam(':id', $_GET['removeid']);
     $stmt->execute();
+    if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
+    if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
     header("Location: product.php");
     exit;
 }

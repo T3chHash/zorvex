@@ -16,9 +16,17 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../function.php';
 require_once __DIR__ . '/lib/icons.php';
 require_once __DIR__ . '/lib/csrf.php';
 require_once __DIR__ . '/../re/rx/function/database_helpers_1.php';
+
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS textbot (
+        id_text VARCHAR(191) PRIMARY KEY NOT NULL,
+        text LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} catch (\Throwable $e) {}
 
 $query = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
 $query->execute([$_SESSION["user"] ?? "", $_SESSION["user"] ?? ""]);
@@ -140,7 +148,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         if ($updated > 0) {
-            faoxima_bust_bot_selectcache('textbot');
+            if (function_exists('zorvex_bust_bot_selectcache')) {
+                zorvex_bust_bot_selectcache('textbot');
+            } elseif (function_exists('faoxima_bust_bot_selectcache')) {
+                faoxima_bust_bot_selectcache('textbot');
+            }
             if (function_exists('clearSelectCache')) {
                 clearSelectCache('textbot');
             }
@@ -169,7 +181,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ins = $pdo->prepare("INSERT INTO textbot (id_text, text) VALUES (:k, :v)
                                       ON DUPLICATE KEY UPDATE text = VALUES(text)");
                 $ins->execute([':k' => $key, ':v' => $val]);
-                faoxima_bust_bot_selectcache('textbot');
+                if (function_exists('zorvex_bust_bot_selectcache')) {
+                    zorvex_bust_bot_selectcache('textbot');
+                } elseif (function_exists('faoxima_bust_bot_selectcache')) {
+                    faoxima_bust_bot_selectcache('textbot');
+                }
                 if (function_exists('clearSelectCache')) {
                     clearSelectCache('textbot');
                 }
@@ -186,7 +202,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $d = $pdo->prepare("DELETE FROM textbot WHERE id_text = :k");
                 $d->execute([':k' => $key]);
-                faoxima_bust_bot_selectcache('textbot');
+                if (function_exists('zorvex_bust_bot_selectcache')) {
+                    zorvex_bust_bot_selectcache('textbot');
+                } elseif (function_exists('faoxima_bust_bot_selectcache')) {
+                    faoxima_bust_bot_selectcache('textbot');
+                }
                 if (function_exists('clearSelectCache')) {
                     clearSelectCache('textbot');
                 }
@@ -208,6 +228,70 @@ try {
     $flash['err'] = 'بارگذاری متن‌ها ناموفق: ' . $e->getMessage();
 }
 
+$existingKeys = [];
+foreach ($rows as $row) {
+    $existingKeys[(string)$row['id_text']] = true;
+}
+
+$langFile = __DIR__ . '/../lang/fa.php';
+$langBase = is_file($langFile) ? (require $langFile) : [];
+
+$categories = faoxima_text_categories();
+foreach ($categories as $catKey => $catInfo) {
+    if (empty($catInfo['keys'])) continue;
+    foreach ($catInfo['keys'] as $k) {
+        if (!isset($existingKeys[$k])) {
+            $defText = '';
+            if ($k === 'text_start') {
+                $defText = $langBase['users']['text_start'] ?? 'سلام خوش آمدید';
+            } elseif ($k === 'text_sell') {
+                $defText = $langBase['textbot']['sell'] ?? '🛍 خرید اشتراک';
+            } elseif ($k === 'text_Purchased_services') {
+                $defText = $langBase['textbot']['purchasedServices'] ?? '📋 سرویس‌های من';
+            } elseif ($k === 'text_extend') {
+                $defText = $langBase['textbot']['extend'] ?? '🔄 تمدید سرویس';
+            } elseif ($k === 'text_usertest') {
+                $defText = $langBase['textbot']['userTest'] ?? '🎁 اکانت تست رایگان';
+            } elseif ($k === 'text_wheel_luck') {
+                $defText = $langBase['textbot']['wheelLuck'] ?? '🎡 گردونه شانس';
+            } elseif ($k === 'accountwallet') {
+                $defText = $langBase['textbot']['accountWallet'] ?? '💳 کیف پول و شارژ';
+            } elseif ($k === 'text_Add_Balance') {
+                $defText = $langBase['textbot']['addBalance'] ?? '➕ افزایش موجودی';
+            } elseif ($k === 'text_Tariff_list') {
+                $defText = $langBase['textbot']['tariffList'] ?? '📊 لیست تعرفه‌ها';
+            } elseif ($k === 'text_dec_Tariff_list') {
+                $defText = $langBase['textbot']['tariffListDesc'] ?? 'تعرفه‌های اشتراک ما به شرح زیر است:';
+            } elseif ($k === 'text_support') {
+                $defText = $langBase['textbot']['support'] ?? '☎️ پشتیبانی';
+            } elseif ($k === 'text_help') {
+                $defText = $langBase['textbot']['help'] ?? '📚 راهنما و آموزش';
+            } elseif ($k === 'text_fq') {
+                $defText = $langBase['textbot']['faq'] ?? '❓ سوالات متداول';
+            } elseif ($k === 'text_dec_fq') {
+                $defText = $langBase['textbot']['faqDesc'] ?? 'پاسخ به سوالات پرتکرار کاربران:';
+            } elseif ($k === 'text_channel') {
+                $defText = $langBase['textbot']['channel'] ?? '📢 کانال اطلاع‌رسانی';
+            } elseif ($k === 'text_affiliates') {
+                $defText = $langBase['textbot']['affiliates'] ?? '👥 زیرمجموعه‌گیری و درآمد';
+            } elseif ($k === 'text_pishinvoice') {
+                $defText = $langBase['textbot']['preInvoice'] ?? 'پیش فاکتور شما آماده است.';
+            } elseif ($k === 'textafterpay') {
+                $defText = $langBase['textbot']['afterPay'] ?? 'پرداخت شما با موفقیت تایید گردید.';
+            } elseif ($k === 'textaftertext') {
+                $defText = $langBase['textbot']['afterText'] ?? 'اطلاعات اکانت شما به شرح زیر است:';
+            } elseif ($k === 'text_Discount') {
+                $defText = $langBase['textbot']['discount'] ?? 'کد تخفیف دارید؟ ارسال کنید:';
+            } elseif ($k === 'carttocart') {
+                $defText = $langBase['textbot']['cartToCart'] ?? '💳 کارت به کارت';
+            } elseif (function_exists('zorvex_textbot_get')) {
+                $defText = zorvex_textbot_get($k, '');
+            }
+            $rows[] = ['id_text' => $k, 'text' => $defText];
+            $existingKeys[$k] = true;
+        }
+    }
+}
 
 $grouped = [];
 foreach ($rows as $row) {
