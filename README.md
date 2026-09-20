@@ -46,12 +46,12 @@
 روی سرور ابری لینوکس خود با دسترسی `root` دستور زیر را اجرا نمایید:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/your-username/zorvex/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/T3chHash/zorvex/main/install.sh | bash
 ```
 
 یا اگر فایل‌ها را کلون کرده‌اید:
 ```bash
-git clone https://github.com/your-username/zorvex.git /var/www/zorvex
+git clone https://github.com/T3chHash/zorvex.git /var/www/zorvex
 cd /var/www/zorvex
 chmod +x install.sh
 ./install.sh

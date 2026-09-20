@@ -70,8 +70,14 @@ mysql -e "FLUSH PRIVILEGES;"
 
 # Target installation directory
 APP_DIR="/var/www/zorvex"
-mkdir -p "${APP_DIR}"
-cp -r ./* "${APP_DIR}/" || true
+if [ ! -f "database/schema.sql" ]; then
+    echo -e "${CYAN}📥 در حال دریافت مستقیم فایل‌های پروژه از گیت‌هاب...${NC}"
+    rm -rf "${APP_DIR}"
+    git clone https://github.com/T3chHash/zorvex.git "${APP_DIR}"
+else
+    mkdir -p "${APP_DIR}"
+    cp -r ./* "${APP_DIR}/" || true
+fi
 
 # Import Schema
 mysql -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < "${APP_DIR}/database/schema.sql"
