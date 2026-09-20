@@ -2609,3 +2609,204 @@ function zorvexEnsureInstallerRemoved()
 {
     return;
 }
+
+#----------- Zorvex / Faoxima Core Helper Utilities ------------#
+
+if (!function_exists('zorvex_bust_bot_selectcache')) {
+    function zorvex_bust_bot_selectcache($table = null)
+    {
+        if (function_exists('clearSelectCache')) {
+            clearSelectCache($table);
+        }
+    }
+}
+if (!function_exists('faoxima_bust_bot_selectcache')) {
+    function faoxima_bust_bot_selectcache($table = null)
+    {
+        zorvex_bust_bot_selectcache($table);
+    }
+}
+
+if (!function_exists('zorvex_textbot_get')) {
+    function zorvex_textbot_get($key, $default = '')
+    {
+        static $cache = null;
+        global $pdo;
+        if ($cache === null) {
+            $cache = [];
+            try {
+                if (isset($pdo) && $pdo instanceof PDO) {
+                    $stmt = $pdo->query("SELECT id_text, text FROM textbot");
+                    if ($stmt) {
+                        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                            $cache[(string)$row['id_text']] = (string)$row['text'];
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                error_log('[zorvex_textbot_get] fetch error: ' . $e->getMessage());
+            }
+        }
+        if (isset($cache[$key]) && $cache[$key] !== '') {
+            return $cache[$key];
+        }
+        return $default;
+    }
+}
+if (!function_exists('faoxima_textbot_get')) {
+    function faoxima_textbot_get($key, $default = '')
+    {
+        return zorvex_textbot_get($key, $default);
+    }
+}
+
+if (!function_exists('zorvex_render_text')) {
+    function zorvex_render_text($template, array $vars = [])
+    {
+        if (!is_string($template)) {
+            $template = (string)$template;
+        }
+        foreach ($vars as $k => $v) {
+            $template = str_replace('{' . $k . '}', (string)$v, $template);
+        }
+        return $template;
+    }
+}
+if (!function_exists('faoxima_render_text')) {
+    function faoxima_render_text($template, array $vars = [])
+    {
+        return zorvex_render_text($template, $vars);
+    }
+}
+
+if (!function_exists('zorvex_symbolic_limit_label')) {
+    function zorvex_symbolic_limit_label($row)
+    {
+        if (!is_array($row)) {
+            return null;
+        }
+        $count = (int)($row['symbolic_limit_users'] ?? $row['symbolic_limit'] ?? 0);
+        if ($count > 0) {
+            return "{$count} کاربر";
+        }
+        return null;
+    }
+}
+if (!function_exists('faoxima_symbolic_limit_label')) {
+    function faoxima_symbolic_limit_label($row)
+    {
+        return zorvex_symbolic_limit_label($row);
+    }
+}
+
+if (!function_exists('zorvex_cap_ip_summary')) {
+    function zorvex_cap_ip_summary($summary, $limit = 0)
+    {
+        if (!is_array($summary) || empty($summary['raw']) || $limit <= 0) {
+            return $summary;
+        }
+        if (count($summary['raw']) > $limit) {
+            $summary['raw'] = array_slice($summary['raw'], 0, $limit);
+            $summary['count'] = count($summary['raw']);
+        }
+        return $summary;
+    }
+}
+if (!function_exists('faoxima_cap_ip_summary')) {
+    function faoxima_cap_ip_summary($summary, $limit = 0)
+    {
+        return zorvex_cap_ip_summary($summary, $limit);
+    }
+}
+
+if (!function_exists('zorvex_apply_curl_proxy')) {
+    function zorvex_apply_curl_proxy($ch, $context = 'telegram')
+    {
+        if (!is_resource($ch) && !($ch instanceof \CurlHandle)) {
+            return;
+        }
+        global $pdo;
+        try {
+            if (isset($pdo) && $pdo instanceof PDO) {
+                // Proxy config hook if applicable
+            }
+        } catch (\Throwable $e) {}
+    }
+}
+if (!function_exists('faoxima_apply_curl_proxy')) {
+    function faoxima_apply_curl_proxy($ch, $context = 'telegram')
+    {
+        zorvex_apply_curl_proxy($ch, $context);
+    }
+}
+
+if (!function_exists('zorvex_public_purchase_log_event')) {
+    function zorvex_public_purchase_log_event($eventType, array $data, array $setting = null)
+    {
+        if ($setting === null) {
+            if (function_exists('select')) {
+                $setting = select("setting", "*", null, null);
+            }
+        }
+        if (empty($setting) || empty($setting['PublicLog_Status']) || (string)$setting['PublicLog_Status'] !== '1') {
+            return;
+        }
+        $channel = trim((string)($setting['PublicLog_Channel'] ?? ''));
+        if ($channel === '') {
+            return;
+        }
+
+        $map = [
+            'new_sub'        => ['col' => 'PublicLog_NewSub',        'title' => '🛍 خرید اشتراک جدید'],
+            'renewal'        => ['col' => 'PublicLog_Renewal',       'title' => '🔄 تمدید سرویس'],
+            'volume_topup'   => ['col' => 'PublicLog_VolumeTopup',   'title' => '➕ افزایش حجم سرویس'],
+            'time_extra'     => ['col' => 'PublicLog_TimeExtra',     'title' => '⏳ افزایش زمان سرویس'],
+            'wallet_deposit' => ['col' => 'PublicLog_WalletDeposit', 'title' => '💳 شارژ کیف پول'],
+        ];
+
+        if (!isset($map[$eventType])) {
+            return;
+        }
+        $cfg = $map[$eventType];
+        if (!empty($cfg['col']) && empty($setting[$cfg['col']])) {
+            return;
+        }
+
+        $userId = $data['user_id'] ?? $data['from_id'] ?? 'کاربر';
+        $maskedUser = (string)$userId;
+        if (strlen($maskedUser) > 4) {
+            $maskedUser = substr($maskedUser, 0, 2) . '***' . substr($maskedUser, -2);
+        }
+        $amount = $data['amount'] ?? '';
+        $price = $data['price'] ?? '';
+        $panelName = $data['panel_name'] ?? '';
+
+        $msg = "<b>" . $cfg['title'] . "</b>\n\n";
+        $msg .= "👤 <b>کاربر:</b> <code>" . htmlspecialchars($maskedUser, ENT_QUOTES, 'UTF-8') . "</code>\n";
+        if ($amount !== '') {
+            $msg .= "📦 <b>پلن:</b> " . htmlspecialchars((string)$amount, ENT_QUOTES, 'UTF-8') . "\n";
+        }
+        if ($price !== '') {
+            $msg .= "💰 <b>مبلغ:</b> " . htmlspecialchars((string)$price, ENT_QUOTES, 'UTF-8') . " تومان\n";
+        }
+        if ($panelName !== '') {
+            $msg .= "🌐 <b>سرور:</b> " . htmlspecialchars((string)$panelName, ENT_QUOTES, 'UTF-8') . "\n";
+        }
+        $msg .= "⏰ <b>زمان:</b> " . (function_exists('jdate') ? jdate('Y/m/d H:i:s') : date('Y-m-d H:i:s')) . "\n\n";
+        $msg .= "🔒 <i>خرید موفق در زوروکس پرو</i>";
+
+        if (function_exists('telegram')) {
+            telegram('sendmessage', [
+                'chat_id'    => $channel,
+                'text'       => $msg,
+                'parse_mode' => 'HTML',
+            ]);
+        }
+    }
+}
+if (!function_exists('faoxima_public_purchase_log_event')) {
+    function faoxima_public_purchase_log_event($eventType, array $data, array $setting = null)
+    {
+        zorvex_public_purchase_log_event($eventType, $data, $setting);
+    }
+}

@@ -70,7 +70,7 @@ $faoximaLiveText = faoxima_text_php_live_overlay();
     </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>ویرایش متن — پنل فاکسیما</title>
+    <title>ویرایش متن — پنل زوروکس پرو</title>
     <link rel="stylesheet" href="css/theme.css?v=flat47">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="js/theme.js?v=flat5" defer>

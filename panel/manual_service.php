@@ -696,7 +696,7 @@ function faoxima_ms_status_label(string $s): array
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>فروش دستی | پنل فاکسیما</title>
+    <title>فروش دستی | پنل زوروکس پرو</title>
     <link rel="stylesheet" href="css/theme.css?v=flat47">
     <link rel="stylesheet" href="css/admin-extra.css?v=flat33">
     <link rel="stylesheet" href="css/components.css?v=flat33">

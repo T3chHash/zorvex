@@ -157,7 +157,7 @@ if (isset($_POST['login'])) {
     </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>ورود به پنل مدیریت | فاکسیما</title>
+    <title>ورود به پنل مدیریت | زوروکس پرو</title>
     <link rel="stylesheet" href="css/theme.css?v=flat47">
 <script src="js/theme.js?v=flat5" defer>
 
@@ -180,7 +180,7 @@ if (isset($_POST['login'])) {
         </div>
 
         <div class="login-body">
-            <h2>پنل مدیریت فاکسیما</h2>
+            <h2>پنل مدیریت زوروکس پرو</h2>
             <p>برای ادامه، اطلاعات حساب خود را وارد کنید.</p>
 
             <?php if (!empty($texterrr)): ?>
@@ -223,17 +223,17 @@ if (isset($_POST['login'])) {
 
             
             <div class="login-social" style="display:flex; gap:10px; justify-content:center; margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
-                <a href="https://t.me/faoxima" target="_blank" rel="noopener noreferrer"
-                   aria-label="کانال تلگرام فاکسیما"
-                   title="کانال تلگرام فاکسیما"
+                <a href="https://t.me/zorvexpanel" target="_blank" rel="noopener noreferrer"
+                   aria-label="کانال تلگرام زوروکس پرو"
+                   title="کانال تلگرام زوروکس پرو"
                    style="display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:10px; background:var(--accent-soft, rgba(59,130,246,0.12)); color:var(--accent, #3b82f6); transition:transform .15s ease, background .15s ease;"
                    onmouseover="this.style.transform='translateY(-2px)';"
                    onmouseout="this.style.transform='translateY(0)';">
                     <?php echo icon('telegram', 'svg-icon'); ?>
                 </a>
-                <a href="https://github.com/Mmd-Amir/Faoxima" target="_blank" rel="noopener noreferrer"
-                   aria-label="مخزن گیت‌هاب فاکسیما"
-                   title="مخزن گیت‌هاب فاکسیما"
+                <a href="https://github.com/T3chHash/zorvex" target="_blank" rel="noopener noreferrer"
+                   aria-label="مخزن گیت‌هاب زوروکس"
+                   title="مخزن گیت‌هاب زوروکس"
                    style="display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:10px; background:var(--accent-soft, rgba(59,130,246,0.12)); color:var(--accent, #3b82f6); transition:transform .15s ease, background .15s ease;"
                    onmouseover="this.style.transform='translateY(-2px)';"
                    onmouseout="this.style.transform='translateY(0)';">

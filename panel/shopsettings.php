@@ -125,7 +125,7 @@ function faoxima_shop_is_on($cur, $on, $off) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>قابلیت‌های فروشگاه | پنل فاکسیما</title>
+    <title>قابلیت‌های فروشگاه | پنل زوروکس پرو</title>
     <link rel="stylesheet" href="css/theme.css?v=flat47">
     <link rel="stylesheet" href="css/admin-extra.css?v=flat32">
     <script src="js/theme.js?v=flat5" defer>

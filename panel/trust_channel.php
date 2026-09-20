@@ -90,7 +90,7 @@ function faoxima_trust_toggle_on($cur, $on, $off) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>تنظیم کانال اعتماد | پنل فاکسیما</title>
+    <title>تنظیم کانال اعتماد | پنل زوروکس پرو</title>
     <link rel="stylesheet" href="css/theme.css?v=flat47">
     <link rel="stylesheet" href="css/admin-extra.css?v=flat32">
     <script src="js/theme.js?v=flat5" defer></script>

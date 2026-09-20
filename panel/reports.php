@@ -212,7 +212,7 @@ $json_group_users  = json_encode(array_map('intval', array_column($groupRows, 'u
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>گزارش‌ها و تحلیل | ربات فاکسیما</title>
+    <title>گزارش‌ها و تحلیل | زوروکس پرو</title>
     <link rel="stylesheet" href="css/theme.css?v=flat47">
     <script src="js/theme.js?v=flat5" defer></script>
 </head>

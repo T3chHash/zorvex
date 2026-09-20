@@ -157,7 +157,7 @@ if ($product == false) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>ویرایش محصول | ربات فاکسیما</title>
+    <title>ویرایش محصول | زوروکس پرو</title>
     <link rel="stylesheet" href="css/theme.css?v=flat47">
 <script src="js/money-input.js?v=fx1" defer></script>
 <script src="js/theme.js?v=flat5" defer>

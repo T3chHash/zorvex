@@ -15,7 +15,7 @@
 ---
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3-777bb4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
-[![Release](https://img.shields.io/badge/Release-v0.0.4-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
+[![Release](https://img.shields.io/badge/Release-v0.0.5-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
 [![Telegram Mini App](https://img.shields.io/badge/Telegram-Mini%20App%20Ready-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://telegram.org)
 [![Supported OS](https://img.shields.io/badge/Ubuntu-20.04%20%7C%2022.04%20%7C%2024.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![License](https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge)](LICENSE)
@@ -40,12 +40,17 @@
 ---
 
 <a name="-معرفی-پلتفرم-زوروکس-پرو"></a>
-## 💎 معرفی پلتفرم زوروکس پرو (نسخه 0.0.4)
+## 💎 معرفی پلتفرم زوروکس پرو (نسخه 0.0.5)
 
 **پلتفرم زوروکس (Zorvex Pro)** نسل نوینی از سیستم‌های مدیریت، فروش و مانیتورینگ سرویس‌های وی‌پی‌ان بر بستر پیام‌رسان تلگرام است. این پلتفرم با ترکیب رابط کاربری مدرن نئونی، مینی‌اپلیکیشن مستقل تک‌صفحه‌ای (SPA) و پنل مدیریتی غنی، تمامی نیازهای یک سرور و ارائه‌دهنده سرویس اینترنت آزاد را پوشش می‌دهد.
 
-### ✨ امکانات و قابلیت‌های متمایز نسخه 0.0.4:
-1. **مینی‌اپلیکیشن تلگرام (Telegram Mini App):**
+### ✨ امکانات و قابلیت‌های متمایز نسخه 0.0.5:
+1. **رفع باگ‌ها و ارتقای پایداری پنل (Stability & Bug Fixes):**
+   - پیاده‌سازی توابع سراسری حل کننده ارورهای ۵۰۰ نظیر `zorvex_textbot_get`، `zorvex_render_text`، `zorvex_bust_bot_selectcache` و `zorvex_public_purchase_log_event`.
+   - یکپارچه‌سازی کامل برندینگ Zorvex Pro در تمامی صفحات، عناوین صفحات، فرم ورود و اعلان‌ها.
+   - بهینه‌سازی سیستم لاگین و امنیت نشست‌های ادمین همراه با بررسی آی‌پی‌های مجاز.
+
+2. **مینی‌اپلیکیشن تلگرام (Telegram Mini App):**
    - تم سایبردارک اختصاصی با قابلیت انتخاب رنگ‌های نئونی پویا (Cyan, Electric Violet, Emerald, Crimson).
    - رینگ گرافیکی و داینامیک مصرف ترافیک لحظه‌ای با محاسبه گر روزهای باقیمانده.
    - کیوآرکد (QR Code) اختصاصی، کپی آنی کانفیگ، و دکمه اتصال مستقیم به کلاینت‌های V2Ray, Clash, Sing-box و Shadowrocket.
@@ -53,16 +58,17 @@
    - کیف پول داخلی کاربر با قابلیت شارژ مستقیم، کارت به کارت و پرداخت ارز دیجیتال (TRC20 / TON).
    - سیستم پشتیبانی تیکتینگ یکپارچه درون مینی‌اپلیکیشن.
 
-2. **داشبورد پیشرفته مدیریت (Zorvex Pro Panel):**
+3. **داشبورد پیشرفته مدیریت (Zorvex Pro Panel):**
    - نمودارهای فروش و عضویت لحظه‌ای مبتنی بر Chart.js (فیلترهای ۲۴ ساعت، ۷ روز، ۳ ماه و بازه سفارشی).
    - مانیتورینگ سلامت نودها و سرورها به صورت تفکیک‌شده.
    - مدیریت کامل سرویس‌ها (تمدید، قطع موقت، ویرایش حجم، انتقال به کاربر دیگر).
    - سیستم پیشرفته کدهای تخفیف، بازاریابی معرف (افیلیت) و کمیسیون خودکار.
    - پنل تنظیمات ظاهر (`appearance.php`) جهت شخصی‌سازی کامل برند و پالت‌های رنگی.
 
-3. **ترمینال هوشمند لینوکس (CLI Installer):**
-   - منوی تعاملی و زیبا در ترمینال با پایش منابع سیستم (RAM, CPU, Disk, Uptime).
-   - سیستم تشخیص خودکار آپدیت جدید از مخزن گیت‌هاب همراه با بنر هشدار.
+4. **ترمینال هوشمند لینوکس (CLI Installer & Updater):**
+   - فرآیند آپدیت فوق‌العاده سریع و روان تنها با انتخاب گزینه ۲ در منوی `zorvex`.
+   - پشتیبان‌گیری خودکار از دیتابیس و فایل‌های پیکربندی در هر آپدیت.
+   - دانلود چندلایه و فال‌بک امن برای تضمین موفقیت آپدیت در شرایط اینترنت ناپایدار.
    - تمدید خودکار گواهی امنیتی SSL و عیب‌یابی وب‌هوک تلگرام.
 
 ---

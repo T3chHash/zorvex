@@ -44,8 +44,8 @@ const PAYMENT_METHODS = [
 ];
 
 const CARDS = [
-    { number: '6037998812345678', name: 'فروشگاه فاکسیما' },
-    { number: '6219861045678901', name: 'فروشگاه فاکسیما' },
+    { number: '6037998812345678', name: 'فروشگاه زوروکس' },
+    { number: '6219861045678901', name: 'فروشگاه زوروکس' },
 ];
 
 function serviceInfo(username) {
