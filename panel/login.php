@@ -63,17 +63,24 @@ if (isset($_POST['login'])) {
     $password = trim($passwordRaw);
 
     if ($username !== '' && ($password !== '' || $passwordRaw !== '')) {
-        $stmt = $pdo->prepare("SELECT * FROM admin WHERE username = :u OR id_admin = :u OR LOWER(username) = LOWER(:u)");
-        $stmt->bindValue(':u', $username, PDO::PARAM_STR);
-        $stmt->execute();
-        $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ?");
+            $stmt->execute([$username, $username]);
+            $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Throwable $e) {
+            $candidates = [];
+        }
 
         // If no match found by username/id_admin, and there is only 1 admin in the entire table, test that admin
         if (empty($candidates)) {
-            $allQ = $pdo->query("SELECT * FROM admin");
-            $allRows = $allQ ? $allQ->fetchAll(PDO::FETCH_ASSOC) : [];
-            if (count($allRows) === 1) {
-                $candidates = $allRows;
+            try {
+                $allQ = $pdo->query("SELECT * FROM admin");
+                $allRows = $allQ ? $allQ->fetchAll(PDO::FETCH_ASSOC) : [];
+                if (count($allRows) === 1) {
+                    $candidates = $allRows;
+                }
+            } catch (\Throwable $e) {
+                $candidates = [];
             }
         }
 

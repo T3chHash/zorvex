@@ -20,9 +20,8 @@ function tk_jdate($raw)
     return jdate('Y/m/d H:i', $ts, '', 'Asia/Tehran', 'fa');
 }
 
-$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username OR id_admin = :username LIMIT 1");
-$query->bindParam("username", $_SESSION["user"], PDO::PARAM_STR);
-$query->execute();
+$query = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
+$query->execute([$_SESSION["user"] ?? "", $_SESSION["user"] ?? ""]);
 $admin = $query->fetch(PDO::FETCH_ASSOC);
 if (!isset($_SESSION["user"]) || !$admin) {
     header('Location: login.php');

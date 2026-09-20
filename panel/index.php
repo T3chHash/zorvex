@@ -65,10 +65,13 @@ if ($sessionUser === null && empty($_SESSION["admin_logged_in"])) {
 
 $result = null;
 if ($sessionUser !== null) {
-    $query = $pdo->prepare("SELECT * FROM admin WHERE username = :u OR id_admin = :u OR LOWER(username) = LOWER(:u) LIMIT 1");
-    $query->bindValue(':u', $sessionUser, PDO::PARAM_STR);
-    $query->execute();
-    $result = $query->fetch(PDO::FETCH_ASSOC);
+    try {
+        $query = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
+        $query->execute([$sessionUser, $sessionUser]);
+        $result = $query->fetch(PDO::FETCH_ASSOC);
+    } catch (\Throwable $e) {
+        $result = null;
+    }
 }
 
 if (!$result && !empty($_SESSION["admin_logged_in"])) {

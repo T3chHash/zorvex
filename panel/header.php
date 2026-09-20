@@ -23,10 +23,14 @@ $__panelVersion = (stripos($__panelVersionRaw, 'v') === 0) ? $__panelVersionRaw 
 
 if (isset($_SESSION["user"])) {
     if (isset($pdo) && $pdo instanceof PDO) {
-        $__stmt_admin_ip = $pdo->prepare("SELECT iplogin FROM admin WHERE username = :username OR id_admin = :username LIMIT 1");
-        $__stmt_admin_ip->bindValue(':username', $_SESSION["user"], PDO::PARAM_STR);
-        $__stmt_admin_ip->execute();
-        $__raw_admin_ip = $__stmt_admin_ip->fetchColumn();
+        $__raw_admin_ip = null;
+        try {
+            $__stmt_admin_ip = $pdo->prepare("SELECT iplogin FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
+            $__stmt_admin_ip->execute([$_SESSION["user"], $_SESSION["user"]]);
+            $__raw_admin_ip = $__stmt_admin_ip->fetchColumn();
+        } catch (\Throwable $e) {
+            $__raw_admin_ip = null;
+        }
 
         $__admin_ip_list = [];
         $__admin_ip_unlimited = true;

@@ -5,9 +5,8 @@ session_start();
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../jdf.php';
 
-$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username OR id_admin = :username LIMIT 1");
-$query->bindParam("username", $_SESSION["user"], PDO::PARAM_STR);
-$query->execute();
+$query = $pdo->prepare("SELECT * FROM admin WHERE username = ? OR id_admin = ? LIMIT 1");
+$query->execute([$_SESSION["user"] ?? "", $_SESSION["user"] ?? ""]);
 $result = $query->fetch(PDO::FETCH_ASSOC);
 $query = $pdo->prepare("SELECT * FROM Inbound");
 $query->execute();
