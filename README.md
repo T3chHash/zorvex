@@ -29,6 +29,9 @@
   <a href="https://github.com/T3chHash/zorvex/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/T3chHash/zorvex?style=flat-square" alt="License"/>
   </a>
+  <a href="https://github.com/T3chHash/zorvex/releases/tag/0.0.3">
+    <img src="https://img.shields.io/badge/Release-v0.0.3-06B6D4?style=flat-square&logo=github&logoColor=white" alt="Release v0.0.3"/>
+  </a>
   <img src="https://img.shields.io/badge/PHP-8.2-777BB4?style=flat-square&logo=php&logoColor=white" alt="PHP 8.2"/>
 </p>
 
