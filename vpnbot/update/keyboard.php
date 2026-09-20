@@ -220,16 +220,24 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
 function KeyboardCategory($location, $agent, $backuser = "backuser")
 {
     global $pdo, $textbotlang;
-    $stmt = $pdo->prepare("SELECT * FROM category");
+    $stmts = $pdo->prepare("SELECT category FROM product WHERE (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers') OR FIND_IN_SET(:agent, agent) > 0)");
+    $stmts->bindValue(':location', (string)$location, PDO::PARAM_STR);
+    $stmts->bindValue(':agent', (string)$agent, PDO::PARAM_STR);
+    $stmts->execute();
+    $activeCategories = [];
+    foreach ($stmts->fetchAll(PDO::FETCH_COLUMN) as $catRaw) {
+        $parts = explode(',', (string)$catRaw);
+        foreach ($parts as $p) {
+            $cleaned = mb_strtolower(trim($p), 'UTF-8');
+            if ($cleaned !== '') $activeCategories[$cleaned] = true;
+        }
+    }
+    $stmt = $pdo->prepare("SELECT * FROM category ORDER BY id ASC");
     $stmt->execute();
-    $list_category = ['inline_keyboard' => [],];
+    $list_category = ['inline_keyboard' => []];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $stmts = $pdo->prepare("SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND category = :category AND agent = :agent");
-        $stmts->bindParam(':location', $location, PDO::PARAM_STR);
-        $stmts->bindParam(':category', $row['remark'], PDO::PARAM_STR);
-        $stmts->bindParam(':agent', $agent);
-        $stmts->execute();
-        if ($stmts->rowCount() == 0)
+        $remarkLower = mb_strtolower(trim((string)$row['remark']), 'UTF-8');
+        if (empty($activeCategories[$remarkLower]))
             continue;
         $list_category['inline_keyboard'][] = [['text' => $row['remark'], 'callback_data' => "categorynames_" . $row['id']]];
     }

@@ -145,10 +145,10 @@ if ($prodQ !== '') {
 }
 
 $listinvoice = [];
-$pg = ['page' => 1, 'pages' => 1, 'perPage' => 5, 'offset' => 0, 'total' => 0];
+$pg = ['page' => 1, 'pages' => 1, 'perPage' => 15, 'offset' => 0, 'total' => 0];
 try {
-    $pg = fx_paginate($pdo, "SELECT COUNT(*) FROM product WHERE $prodWhereSql", $prodParams, 5);
-    $query = $pdo->prepare("SELECT * FROM product WHERE $prodWhereSql ORDER BY (position = 0) ASC, position ASC, id ASC LIMIT :perPage OFFSET :offset");
+    $pg = fx_paginate($pdo, "SELECT COUNT(*) FROM product WHERE $prodWhereSql", $prodParams, 15);
+    $query = $pdo->prepare("SELECT * FROM product WHERE $prodWhereSql ORDER BY (position = 0) ASC, position ASC, id DESC LIMIT :perPage OFFSET :offset");
     foreach ($prodParams as $k => $v) $query->bindValue($k, $v, PDO::PARAM_STR);
     $query->bindValue(':perPage', $pg['perPage'], PDO::PARAM_INT);
     $query->bindValue(':offset', $pg['offset'], PDO::PARAM_INT);
@@ -156,7 +156,7 @@ try {
     $listinvoice = $query->fetchAll(PDO::FETCH_ASSOC) ?: [];
 } catch (\Throwable $e) {
     try {
-        $query = $pdo->prepare("SELECT * FROM product WHERE $prodWhereSql ORDER BY id ASC LIMIT :perPage OFFSET :offset");
+        $query = $pdo->prepare("SELECT * FROM product WHERE $prodWhereSql ORDER BY id DESC LIMIT :perPage OFFSET :offset");
         foreach ($prodParams as $k => $v) $query->bindValue($k, $v, PDO::PARAM_STR);
         $query->bindValue(':perPage', $pg['perPage'], PDO::PARAM_INT);
         $query->bindValue(':offset', $pg['offset'], PDO::PARAM_INT);
@@ -190,34 +190,38 @@ try {
 }
 
 
-$nameProduct = $_POST['nameproduct'] ?? null;
-if (!empty($nameProduct)) {
+$nameProduct = trim((string)($_POST['nameproduct'] ?? ''));
+if ($nameProduct !== '') {
     $randomString = bin2hex(random_bytes(2));
     $userdata['data_limit_reset'] = "no_reset";
 
-    $product_count = select("product", "*", "name_product", $nameProduct, "count");
-    if ($product_count != 0) {
-        echo "<script>
-alert('محصول از قبل وجود دارد'); window.location.href='product.php';
-</script>";
-        return;
+    $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM product WHERE name_product = :name");
+    $checkStmt->execute([':name' => $nameProduct]);
+    if ((int)$checkStmt->fetchColumn() > 0) {
+        $_SESSION['flash_err'] = 'محصولی با نام «' . htmlspecialchars($nameProduct, ENT_QUOTES, 'UTF-8') . '» از قبل وجود دارد!';
+        header("Location: product.php");
+        exit;
     }
 
     $hidepanel       = "{}";
-    $priceProduct    = $_POST['price_product']    ?? '';
-    $volumeProduct   = $_POST['volume_product']   ?? '';
-    $serviceTime     = $_POST['time_product']     ?? '';
-    $agentProduct    = $_POST['agent_product']    ?? '';
-    $agentProduct    = strtolower(trim((string)$agentProduct));
+    $priceProductRaw = trim((string)($_POST['price_product'] ?? '0'));
+    $priceProduct    = preg_replace('/[^\d]/', '', $priceProductRaw);
+    if ($priceProduct === '') $priceProduct = '0';
+
+    $volumeProduct   = trim((string)($_POST['volume_product']   ?? '0'));
+    $serviceTime     = trim((string)($_POST['time_product']     ?? '0'));
+    $agentProduct    = strtolower(trim((string)($_POST['agent_product'] ?? 'f')));
     if (!in_array($agentProduct, ['f', 'n', 'n2', 'all'], true)) {
-        echo "<script>alert('گروه کاربری نامعتبر است'); window.location.href='product.php';</script>";
-        return;
+        $agentProduct = 'f';
     }
 
     $locationArr = explode(',', (string)($_POST['namepanel_csv'] ?? ''));
     $locationArr = array_values(array_unique(array_filter(array_map('trim', $locationArr), function ($v) { return $v !== ''; })));
-    if (in_array('/all', $locationArr, true)) $locationArr = ['/all'];
-    $location = implode(',', $locationArr);
+    if (empty($locationArr) || in_array('/all', $locationArr, true)) {
+        $location = '/all';
+    } else {
+        $location = implode(',', $locationArr);
+    }
 
     $categoryArr = explode(',', (string)($_POST['cetegory_product_csv'] ?? ''));
     $newCategory = trim((string)($_POST['cetegory_product_new'] ?? ''));
@@ -231,8 +235,8 @@ alert('محصول از قبل وجود دارد'); window.location.href='product
             $pdo->prepare("INSERT IGNORE INTO category (remark) VALUES (:r)")->execute([':r' => $catValue]);
         }
     }
-    $note            = $_POST['note_product']     ?? '';
-    $dataLimitReset  = $userdata['data_limit_reset'];
+    $note           = trim((string)($_POST['note_product'] ?? ''));
+    $dataLimitReset = "no_reset";
 
     $ipLimitRaw = trim((string)($_POST['ip_limit_product'] ?? '0'));
     if ($ipLimitRaw === '' || !ctype_digit($ipLimitRaw) || (int)$ipLimitRaw > 50) {
@@ -259,25 +263,74 @@ alert('محصول از قبل وجود دارد'); window.location.href='product
         $symbolicLimitEnabled = '0';
     }
 
-    $stmt = $pdo->prepare("INSERT IGNORE INTO product (name_product,code_product,price_product,Volume_constraint,Service_time,Location,agent,data_limit_reset,note,category,hide_panel,one_buy_status,ip_limit,hwid_limit,symbolic_limit_enabled,symbolic_limit_users) VALUES (:name_product,:code_product,:price_product,:Volume_constraint,:Service_time,:Location,:agent,:data_limit_reset,:note,:category,:hide_panel,'0',:ip_limit,:hwid_limit,:symbolic_limit_enabled,:symbolic_limit_users)");
-    $stmt->bindParam(':name_product',     $nameProduct, PDO::PARAM_STR);
-    $stmt->bindParam(':code_product',     $randomString);
-    $stmt->bindParam(':price_product',    $priceProduct, PDO::PARAM_STR);
-    $stmt->bindParam(':Volume_constraint',$volumeProduct, PDO::PARAM_STR);
-    $stmt->bindParam(':Service_time',     $serviceTime, PDO::PARAM_STR);
-    $stmt->bindParam(':Location',         $location, PDO::PARAM_STR);
-    $stmt->bindParam(':agent',            $agentProduct, PDO::PARAM_STR);
-    $stmt->bindParam(':data_limit_reset', $dataLimitReset);
-    $stmt->bindParam(':category',         $category, PDO::PARAM_STR);
-    $stmt->bindParam(':note',             $note, PDO::PARAM_STR);
-    $stmt->bindParam(':hide_panel',       $hidepanel);
-    $stmt->bindParam(':ip_limit',         $ipLimit, PDO::PARAM_STR);
-    $stmt->bindParam(':hwid_limit',       $hwidLimit, PDO::PARAM_STR);
-    $stmt->bindParam(':symbolic_limit_enabled', $symbolicLimitEnabled, PDO::PARAM_STR);
+    $nextPos = 1;
     try {
-        $stmt->execute();
+        $posStmt = $pdo->query("SELECT MAX(position) FROM product");
+        $maxPos = (int)$posStmt->fetchColumn();
+        $nextPos = $maxPos + 1;
+    } catch (\Throwable $e) {}
+
+    $stmt = $pdo->prepare("INSERT INTO product (
+        name_product,
+        code_product,
+        price_product,
+        Volume_constraint,
+        Service_time,
+        Location,
+        agent,
+        data_limit_reset,
+        note,
+        category,
+        hide_panel,
+        one_buy_status,
+        ip_limit,
+        hwid_limit,
+        symbolic_limit_enabled,
+        symbolic_limit_users,
+        position
+    ) VALUES (
+        :name_product,
+        :code_product,
+        :price_product,
+        :Volume_constraint,
+        :Service_time,
+        :Location,
+        :agent,
+        :data_limit_reset,
+        :note,
+        :category,
+        :hide_panel,
+        '0',
+        :ip_limit,
+        :hwid_limit,
+        :symbolic_limit_enabled,
+        :symbolic_limit_users,
+        :position
+    )");
+
+    try {
+        $stmt->execute([
+            ':name_product'           => $nameProduct,
+            ':code_product'           => $randomString,
+            ':price_product'          => $priceProduct,
+            ':Volume_constraint'      => $volumeProduct,
+            ':Service_time'           => $serviceTime,
+            ':Location'               => $location,
+            ':agent'                  => $agentProduct,
+            ':data_limit_reset'       => $dataLimitReset,
+            ':note'                   => $note,
+            ':category'               => $category,
+            ':hide_panel'             => $hidepanel,
+            ':ip_limit'               => $ipLimit,
+            ':hwid_limit'             => $hwidLimit,
+            ':symbolic_limit_enabled' => $symbolicLimitEnabled,
+            ':symbolic_limit_users'   => $symbolicLimitUsers,
+            ':position'               => $nextPos
+        ]);
+        $_SESSION['flash_ok'] = 'محصول «' . htmlspecialchars($nameProduct, ENT_QUOTES, 'UTF-8') . '» با موفقیت ثبت شد.';
     } catch (\Throwable $e) {
         error_log('[product.php] insert product failed: ' . $e->getMessage());
+        $_SESSION['flash_err'] = 'خطا در ذخیره محصول: ' . $e->getMessage();
     }
     if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
     if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
@@ -307,10 +360,12 @@ if (isset($_GET['oneproduct'], $_GET['toweproduct']) && $_GET['oneproduct'] !== 
                 $setPos->execute([$posOf[$id1], $id2]);
             }
             $pdo->commit();
+            $_SESSION['flash_ok'] = 'موقعیت محصولات با موفقیت جابجا شد.';
             if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
             if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
         } catch (\Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
+            $_SESSION['flash_err'] = 'خطا در جابجایی ردیف: ' . $e->getMessage();
         }
     }
     header("Location: product.php");
@@ -323,9 +378,12 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
         $stmt = $pdo->prepare("DELETE FROM product WHERE id = :id");
         $stmt->bindParam(':id', $_GET['removeid']);
         $stmt->execute();
+        $_SESSION['flash_ok'] = 'محصول مورد نظر با موفقیت حذف شد.';
         if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
         if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
-    } catch (\Throwable $e) {}
+    } catch (\Throwable $e) {
+        $_SESSION['flash_err'] = 'خطا در حذف محصول: ' . $e->getMessage();
+    }
     header("Location: product.php");
     exit;
 }
@@ -368,7 +426,71 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                 </div>
             </div>
 
+            <?php if (!empty($_SESSION['flash_ok'])): ?>
+                <div class="alert alert-success" style="margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 12px; padding: 12px 18px; color: #4ade80;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <?php echo icon('check', 'svg-icon'); ?>
+                        <span><?php echo htmlspecialchars($_SESSION['flash_ok'], ENT_QUOTES, 'UTF-8'); ?></span>
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; cursor:pointer; font-size:18px;">&times;</button>
+                </div>
+                <?php unset($_SESSION['flash_ok']); ?>
+            <?php endif; ?>
+
+            <?php if (!empty($_SESSION['flash_err'])): ?>
+                <div class="alert alert-danger" style="margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 12px 18px; color: #f87171;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <?php echo icon('triangle-exclamation', 'svg-icon'); ?>
+                        <span><?php echo htmlspecialchars($_SESSION['flash_err'], ENT_QUOTES, 'UTF-8'); ?></span>
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; cursor:pointer; font-size:18px;">&times;</button>
+                </div>
+                <?php unset($_SESSION['flash_err']); ?>
+            <?php endif; ?>
+
             <?php echo fx_bulk_delete_flash_html(); ?>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 20px;">
+                <div class="card" style="margin:0; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-right: 4px solid var(--accent);">
+                    <div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">کل محصولات ثبت‌شده</div>
+                        <div style="font-size:22px; font-weight:700; color:var(--text-main);"><?php echo number_format($pg['total']); ?></div>
+                    </div>
+                    <div style="background:var(--accent-soft); padding:10px; border-radius:12px; color:var(--accent);">
+                        <?php echo icon('cube', 'svg-icon svg-lg'); ?>
+                    </div>
+                </div>
+                <div class="card" style="margin:0; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-right: 4px solid var(--color-purple);">
+                    <div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">دسته‌بندی‌های فعال</div>
+                        <div style="font-size:22px; font-weight:700; color:var(--text-main);"><?php echo count($listcategory); ?></div>
+                    </div>
+                    <div style="background:var(--color-purple-soft); padding:10px; border-radius:12px; color:var(--color-purple);">
+                        <?php echo icon('folder', 'svg-icon svg-lg'); ?>
+                    </div>
+                </div>
+                <div class="card" style="margin:0; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-right: 4px solid var(--color-info);">
+                    <div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">پنل‌های متصل</div>
+                        <div style="font-size:22px; font-weight:700; color:var(--text-main);"><?php echo count($listpanel); ?></div>
+                    </div>
+                    <div style="background:var(--color-info-soft); padding:10px; border-radius:12px; color:var(--color-info);">
+                        <?php echo icon('server', 'svg-icon svg-lg'); ?>
+                    </div>
+                </div>
+                <div class="card" style="margin:0; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-right: 4px solid var(--color-success);">
+                    <div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">وضعیت همگام‌سازی ربات</div>
+                        <div style="font-size:13px; font-weight:700; color:var(--color-success); display:flex; align-items:center; gap:6px; margin-top:6px;">
+                            <span style="width:8px; height:8px; background:var(--color-success); border-radius:50%; display:inline-block; box-shadow:0 0 8px var(--color-success);"></span>
+                            فعال و آماده فروش
+                        </div>
+                    </div>
+                    <div style="background:var(--color-success-soft); padding:10px; border-radius:12px; color:var(--color-success);">
+                        <?php echo icon('check', 'svg-icon svg-lg'); ?>
+                    </div>
+                </div>
+            </div>
 
             <?php echo fx_search_ui('product.php', $prodQ, [], 'جستجو در شناسه، نام محصول، لوکیشن یا دسته‌بندی…'); ?>
 
@@ -377,13 +499,25 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                     <?php echo fx_csrf_field(); ?>
                     <input type="hidden" name="action" value="bulk_delete">
                     <div class="table-wrap">
+                    <?php if (empty($listinvoice)): ?>
+                        <div style="text-align:center; padding: 48px 16px; color: var(--text-muted);">
+                            <div style="margin-bottom:12px; opacity:0.4;">
+                                <?php echo icon('cube', 'svg-icon svg-2x'); ?>
+                            </div>
+                            <div style="font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">هنوز هیچ محصولی ثبت نشده است!</div>
+                            <div style="font-size: 13px; margin-bottom: 20px;">با افزودن محصول، کاربران ربات تلگرام می‌توانند اشتراک‌ها را به راحتی خریداری کنند.</div>
+                            <button type="button" onclick="openModal('modal-add-product')" class="btn btn-primary btn-sm">
+                                <?php echo icon('plus', 'svg-icon'); ?> افزودن اولین محصول
+                            </button>
+                        </div>
+                    <?php else: ?>
                     <table id="productsTable" class="display app-table app-table--summary" style="width:100%">
                         <thead>
                             <tr>
                                 <th><input type="checkbox" id="check-all" onclick="faoximaToggleAll(this)"></th>
                                 <th>شناسه</th>
                                 <th>نام محصول</th>
-                                <th>قیمت</th>
+                                <th>قیمت (تومان)</th>
                                 <th>حجم (GB)</th>
                                 <th>زمان (روز)</th>
                                 <th>لوکیشن</th>
@@ -397,18 +531,23 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                         <?php foreach ($listinvoice as $list):
                             $categoryItems = array_values(array_filter(array_map('trim', explode(',', (string)($list['category'] ?? '')))));
                             $locationItems = array_values(array_filter(array_map('trim', explode(',', (string)($list['Location'] ?? '')))));
-                            $agent_type = 'عادی'; $agent_badge = 'badge-gray';
+                            $agent_type = 'کاربر عادی'; $agent_badge = 'badge-gray';
                             if ($list['agent'] == 'n')  { $agent_type = 'نماینده';      $agent_badge = 'badge-purple';  }
                             if ($list['agent'] == 'n2') { $agent_type = 'نماینده ویژه';  $agent_badge = 'badge-warning'; }
                             if ($list['agent'] == 'all' || $list['agent'] == 'allusers') { $agent_type = 'همه کاربران'; $agent_badge = 'badge-success'; }
                         ?>
                             <tr data-detail-row data-detail-title="<?php echo htmlspecialchars($list['name_product'], ENT_QUOTES, 'UTF-8'); ?>">
                                 <td><label class="fx-check-row"><input type="checkbox" name="ids[]" value="<?php echo $list['id']; ?>"></label></td>
-                                <td data-label="شناسه" data-summary="1"><?php echo $list['id']; ?></td>
-                                <td data-label="نام محصول" data-summary="1"><?php echo htmlspecialchars($list['name_product'], ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td data-label="قیمت" data-summary="1"><span class="badge badge-success"><?php echo number_format($list['price_product']); ?></span></td>
-                                <td data-label="حجم (GB)"><span class="badge badge-info"><?php echo ((int)$list['Volume_constraint'] === 0) ? 'نامحدود' : (int)$list['Volume_constraint']; ?></span></td>
-                                <td data-label="زمان (روز)"><span class="badge badge-warning"><?php echo (int)$list['Service_time']; ?></span></td>
+                                <td data-label="شناسه" data-summary="1"><code style="font-weight:700; color:var(--accent);"><?php echo $list['id']; ?></code></td>
+                                <td data-label="نام محصول" data-summary="1">
+                                    <div style="font-weight:600; color:var(--text-main);"><?php echo htmlspecialchars($list['name_product'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php if (!empty($list['note'])): ?>
+                                        <small style="color:var(--text-muted); display:block;"><?php echo htmlspecialchars($list['note'], ENT_QUOTES, 'UTF-8'); ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td data-label="قیمت" data-summary="1"><span class="badge badge-success" style="font-size:13px; font-weight:700;"><?php echo number_format($list['price_product']); ?> <small style="font-size:10px;">تومان</small></span></td>
+                                <td data-label="حجم (GB)"><span class="badge badge-info"><?php echo ((int)$list['Volume_constraint'] === 0) ? 'نامحدود' : (int)$list['Volume_constraint'] . ' GB'; ?></span></td>
+                                <td data-label="زمان (روز)"><span class="badge badge-warning"><?php echo (int)$list['Service_time'] . ' روز'; ?></span></td>
                                 <td data-label="لوکیشن">
                                     <?php
                                         $locationBadgesHtml = array_map(function ($locItem) {
@@ -426,7 +565,7 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                                         echo faoxima_render_compact_badges($categoryBadgesHtml);
                                     ?>
                                 </td>
-                                <td data-label="وضعیت در ربات"><span class="badge badge-success">● فعال در ربات</span></td>
+                                <td data-label="وضعیت در ربات"><span class="badge badge-success" style="box-shadow: 0 0 10px rgba(34, 197, 94, 0.25);">● فعال در ربات</span></td>
                                 <td data-label="عملیات" class="cell-actions">
                                     <div style="display:inline-flex; gap:6px;">
                                         <a href="productedit.php?id=<?php echo $list['id']; ?>" class="btn btn-sm btn-soft-info" title="ویرایش">
@@ -450,7 +589,7 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                                             <?php echo icon('copy', 'svg-icon'); ?>
                                         </button>
                                         <a href="product.php?removeid=<?php echo $list['id']; ?>" class="btn btn-sm btn-soft-danger" title="حذف"
-                                           onclick="return confirm('آیا از حذف این محصول مطمئن هستید؟')">
+                                            onclick="return confirm('آیا از حذف این محصول مطمئن هستید؟')">
                                             <?php echo icon('trash', 'svg-icon'); ?>
                                         </a>
                                     </div>
@@ -460,6 +599,7 @@ if (isset($_GET['removeid']) && $_GET['removeid'] !== '') {
                         </tbody>
                     </table>
                     <?php echo fx_pager_html($pg['page'], $pg['pages'], $pg['total'], count($listinvoice), 'product.php', ['q' => $prodQ !== '' ? $prodQ : null]); ?>
+                    <?php endif; ?>
                     </div>
                     <div style="padding:12px 0;">
                         <button type="submit" class="btn btn-soft-danger btn-sm js-bulk-delete-btn" style="display:none;" onclick="return confirm('آیا از حذف محصولات انتخاب‌شده مطمئن هستید؟')">

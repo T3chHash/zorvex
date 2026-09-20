@@ -69,8 +69,9 @@ if ($product == false) {
             }
         }
 
-        $price_product = htmlspecialchars($_POST['price_product'], ENT_QUOTES, 'UTF-8');
-        if (!is_numeric($price_product)) {
+        $price_product_raw = htmlspecialchars($_POST['price_product'], ENT_QUOTES, 'UTF-8');
+        $price_product = preg_replace('/[^\d]/', '', (string)$price_product_raw);
+        if ($price_product === '' || !is_numeric($price_product)) {
             $statusmessage = true; $infomesssage = "مبلغ محصول باید عدد باشد";
         } elseif ($product['price_product'] != $price_product) {
             update("product", "price_product", $price_product, "id", $id_product);
@@ -165,6 +166,7 @@ if ($product == false) {
         }
 
         if (!$statusmessage) {
+            $_SESSION['flash_ok'] = 'محصول «' . htmlspecialchars($name_product, ENT_QUOTES, 'UTF-8') . '» با موفقیت ویرایش شد.';
             if (function_exists('clearSelectCache')) { clearSelectCache('product'); }
             if (function_exists('zorvex_bust_bot_selectcache')) { zorvex_bust_bot_selectcache('product'); }
             header('Location: product.php');

@@ -600,7 +600,7 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
     if (($locationproduct)->rowCount() == 1) {
         $location = ($locationproduct)->fetch(PDO::FETCH_ASSOC)['name_panel'];
         $locationproduct = select("marzban_panel", "*", "name_panel", $location, "select");
-        $query = "SELECT * FROM product WHERE (Location = '{$locationproduct['name_panel']}' OR Location = '/all')AND agent= '{$userbot['agent']}'";
+        $query = "SELECT * FROM product WHERE (Location = '{$locationproduct['name_panel']}' OR Location = '/all' OR FIND_IN_SET('{$locationproduct['name_panel']}', Location) > 0) AND (agent = '{$userbot['agent']}' OR agent IN ('all', 'allusers') OR FIND_IN_SET('{$userbot['agent']}', agent) > 0)";
         $stmt = $pdo->prepare($query);
         $stmt->execute();
         $productnotexits = $stmt->rowCount();
@@ -703,7 +703,7 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
             return;
         }
     }
-    $query = "SELECT * FROM product WHERE (Location = '{$locationproduct['name_panel']}' OR Location = '/all')AND agent= '{$userbot['agent']}'";
+    $query = "SELECT * FROM product WHERE (Location = '{$locationproduct['name_panel']}' OR Location = '/all' OR FIND_IN_SET('{$locationproduct['name_panel']}', Location) > 0) AND (agent = '{$userbot['agent']}' OR agent IN ('all', 'allusers') OR FIND_IN_SET('{$userbot['agent']}', agent) > 0)";
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     $productnotexits = $stmt->rowCount();
@@ -723,7 +723,7 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
             $prodcut = KeyboardProduct($locationproduct['name_panel'], $query, 0, $keyboarddata, $statuscustom, "backuser", null, $customvolume = "customvolumebuy");
             Editmessagetext($from_id, $message_id, "🛍️ لطفاً سرویسی که می‌خواهید خریداری کنید را انتخاب کنید!", $prodcut, 'HTML');
         } else {
-            $nullproduct = select("product", "*", "agent", $userbot['agent'], "count");
+            $nullproduct = $pdo->query("SELECT COUNT(*) FROM product WHERE (agent = '{$userbot['agent']}' OR agent IN ('all', 'allusers') OR FIND_IN_SET('{$userbot['agent']}', agent) > 0)")->fetchColumn();
             if ($nullproduct == 0) {
                 sendmessage($from_id, $textbotlang['users']['sell']['nullProduct'], null, 'HTML');
                 return;
@@ -749,8 +749,8 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
     $categorynames = $dataget[1];
     $categorynames = select("category", "remark", "id", $categorynames, "select")['remark'];
     $userdate = json_decode($user['Processing_value'], true);
-    $locationproduct = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "seelct");
-    $query = "SELECT * FROM product WHERE (Location = '{$locationproduct['name_panel']}' OR Location = '/all') AND category = '$categorynames' AND agent= '{$userbot['agent']}' ";
+    $locationproduct = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
+    $query = "SELECT * FROM product WHERE (Location = '{$locationproduct['name_panel']}' OR Location = '/all' OR FIND_IN_SET('{$locationproduct['name_panel']}', Location) > 0) AND (category = '$categorynames' OR FIND_IN_SET('$categorynames', category) > 0) AND (agent = '{$userbot['agent']}' OR agent IN ('all', 'allusers') OR FIND_IN_SET('{$userbot['agent']}', agent) > 0)";
     $statuscustomvolume = json_decode($locationproduct['customvolume'], true)[$userbot['agent']];
     if ($statuscustomvolume == "1" && $locationproduct['type'] != "Manualsale") {
         $statuscustom = true;
@@ -1585,7 +1585,7 @@ $output
     savedata("save", "name_panel", $nameloc['Service_location']);
     deletemessage($from_id, $message_id);
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $query = "SELECT * FROM product WHERE (Location = '{$nameloc['Service_location']}' OR Location = '/all')AND agent= '{$userbot['agent']}'";
+    $query = "SELECT * FROM product WHERE (Location = '{$nameloc['Service_location']}' OR Location = '/all' OR FIND_IN_SET('{$nameloc['Service_location']}', Location) > 0) AND (agent = '{$userbot['agent']}' OR agent IN ('all', 'allusers') OR FIND_IN_SET('{$userbot['agent']}', agent) > 0)";
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     $productnotexits = $stmt->rowCount();
@@ -1596,7 +1596,7 @@ $output
         } else {
             $statuscustom = false;
         }
-        $query = "SELECT * FROM product WHERE (Location = '{$marzban_list_get['name_panel']}' OR Location = '/all')AND agent= '{$userbot['agent']}'";
+        $query = "SELECT * FROM product WHERE (Location = '{$marzban_list_get['name_panel']}' OR Location = '/all' OR FIND_IN_SET('{$marzban_list_get['name_panel']}', Location) > 0) AND (agent = '{$userbot['agent']}' OR agent IN ('all', 'allusers') OR FIND_IN_SET('{$userbot['agent']}', agent) > 0)";
         $prodcut = KeyboardProduct($marzban_list_get['name_panel'], $query, 0, "selectproductextends_", $statuscustom, "backuser", null, $customvolume = "customvolumeextend");
         sendmessage($from_id, "🛍️ لطفاً سرویسی که می‌خواهید تمدید کنید را انتخاب کنید!", $prodcut, 'HTML');
     } else {

@@ -59,7 +59,7 @@ function faoxima_schema_ensure_column(PDO $pdo, string $table, string $column, s
 
 
 function faoxima_schema_ready(PDO $pdo): void {
-    if (!empty($_SESSION['__faoxima_schema_ok_v107'])) {
+    if (!empty($_SESSION['__faoxima_schema_ok_v108'])) {
         return;
     }
 
@@ -475,7 +475,7 @@ function faoxima_schema_ready(PDO $pdo): void {
     }
 
 
-    $_SESSION['__faoxima_schema_ok_v107'] = true;
+    $_SESSION['__faoxima_schema_ok_v108'] = true;
 }
 
 }
