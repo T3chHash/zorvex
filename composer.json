@@ -1,0 +1,22 @@
+{
+    "name": "zorvex/platform",
+    "description": "Zorvex - Next-Generation Enterprise Telegram VPN Sales, Management & Subscription Platform",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Zorvex\\": "app/"
+        },
+        "files": [
+            "app/Helpers/jdf.php",
+            "app/Helpers/functions.php"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}
