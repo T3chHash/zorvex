@@ -1362,15 +1362,15 @@ function show_help_screen() {
     _kv "--db-pass" "${C_DIM}Database password${CR}"
 
     _sec "Source parameters"
-    _kv "--version" "${C_DIM}Specific release tag (e.g. 0.1.7)${CR}"
+    _kv "--version" "${C_DIM}Specific release tag (e.g. 0.0.2)${CR}"
     _kv "--channel" "${C_DIM}beta | release | auto${CR}"
     _kv "-h, --help" "${C_DIM}Show CLI help and exit${CR}"
 
     _sec "Examples"
     printf "    ${C_KEY}zorvex install --channel auto${CR}\n"
     printf "    ${C_KEY}zorvex install --token 123:ABC \\\\${CR}\n"
-    printf "    ${C_DIM}            --admin 111 --domain bot.example.com --version 0.1.7${CR}\n"
-    printf "    ${C_KEY}zorvex update --version 0.1.6${CR}\n"
+    printf "    ${C_DIM}            --admin 111 --domain bot.example.com --version 0.0.2${CR}\n"
+    printf "    ${C_KEY}zorvex update --version 0.0.2${CR}\n"
     printf "    ${C_KEY}zorvex update --channel release${CR}\n"
     printf "    ${C_KEY}zorvex remove${CR}\n"
     printf "    ${C_KEY}zorvex backup${CR}\n"
@@ -2858,15 +2858,15 @@ print_usage() {
     --domain <domain>  Domain name (e.g. bot.example.com)
     --db-user <user>   Database username
     --db-pass <pass>   Database password
-    --version <tag>    Install/update a specific release tag (e.g. 0.1.7)
+    --version <tag>    Install/update a specific release tag (e.g. 0.0.2)
     --channel <name>   Source channel: beta | release | auto
     -h, --help         Show this help and exit
 
   Examples:
     zorvex install --channel auto
-    zorvex install --token 123:ABC --admin 111 --domain bot.example.com --version 0.1.7
+    zorvex install --token 123:ABC --admin 111 --domain bot.example.com --version 0.0.2
     zorvex update --channel release
-    zorvex update --version 0.1.6
+    zorvex update --version 0.0.2
 
 USAGE
 }

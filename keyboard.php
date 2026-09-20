@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+global $domainhosts;
 $setting = select("setting", "*", null, null, "select");
 $textbotlang = languagechange();
 //-----------------------------[  text panel  ]-------------------------------
@@ -100,6 +101,9 @@ if ($setting['inlinebtnmain'] == "oninline" && !empty($keyboardRows)) {
     if ($users['agent'] == "f" && $setting['statusagentrequest'] == "onrequestagent") {
         $temp_addtional_key[] = ['text' => $textbotlang['textbot']['requestAgent'], 'callback_data' => "requestagent"];
     }
+    if (!empty($domainhosts) && strpos($domainhosts, '{') === false) {
+        $temp_addtional_key[] = ['text' => '🌐 مینی‌اپ Zorvex', 'web_app' => ['url' => "https://{$domainhosts}/app/"]];
+    }
     $keyboard = ['inline_keyboard' => []];
     if (!empty($temp_addtional_key)) {
         $keyboardcustom[] = $temp_addtional_key;
@@ -116,6 +120,9 @@ if ($setting['inlinebtnmain'] == "oninline" && !empty($keyboardRows)) {
     }
     if ($users['agent'] == "f" && $setting['statusagentrequest'] == "onrequestagent") {
         $temp_addtional_key[] = ['text' => $textbotlang['textbot']['requestAgent']];
+    }
+    if (!empty($domainhosts) && strpos($domainhosts, '{') === false) {
+        $temp_addtional_key[] = ['text' => '🌐 مینی‌اپ Zorvex', 'web_app' => ['url' => "https://{$domainhosts}/app/"]];
     }
     $keyboard = ['keyboard' => [], 'resize_keyboard' => true];
     $keyboardcustom = !empty($keyboardRows) ? $keyboardRows : [

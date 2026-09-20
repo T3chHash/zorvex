@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
   <meta name="theme-color" content="#0F172A" id="mtc">
-  <title><?= $textbotlang['panel']['loginPanelTitle'] ?></title>
+  <title>ورود به پنل مدیریت | ZORVEX Enterprise</title>
   <link rel="stylesheet" href="css/style.css">
   <script>(function () { var t = localStorage.getItem('panel-theme') || 'navy'; document.documentElement.setAttribute('data-theme', t); var c = { navy: '#0F172A', purple: '#180D2E', emerald: '#0A1F1C', sunset: '#1A0D0D', slate: '#080808', light: '#F1F5F9', linen: '#FAF7F2', mint: '#F0FDF4', lavender: '#FAF5FF' }; var m = document.getElementById('mtc'); if (m && c[t]) m.content = c[t]; })();</script>
 </head>
@@ -75,44 +75,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <aside class="auth-aside">
       <div class="auth-mark">
         <div class="dot">Z</div>
-        <span><?= $textbotlang['panel']['loginHeading'] ?></span>
+        <div style="display:flex; flex-direction:column; margin-right:8px;">
+          <span style="font-weight:800; letter-spacing:-0.02em; font-size:1.3rem;">ZORVEX</span>
+          <span style="font-size:0.72rem; color:var(--ac); font-weight:700; letter-spacing:0.12em;">ENTERPRISE PRO</span>
+        </div>
       </div>
       <div class="auth-quote">
-        <h2><?= $textbotlang['panel']['loginSubtitle'] ?> <a style="color:#a8dafd !important  "
-            href="https://github.com/T3chHash/zorvex"><?= $textbotlang['panel']['loginUsernameLabel'] ?></a>
-          <?= $textbotlang['panel']['loginUsernamePlaceholder'] ?></h2>
-        <cite><?= $textbotlang['panel']['loginPasswordLabel'] ?></cite>
+        <h2 style="font-size:1.35rem; font-weight:700; line-height:1.7; margin-bottom:12px;">پلتفرم هوشمند مدیریت و فروش اتوماتیک کانفیگ و اشتراک VPN</h2>
+        <cite style="font-size:0.8rem; color:var(--dim); font-style:normal;">طراحی مدرن، سرعت فوق‌العاده و اتصال یکپارچه با انواع پروتکل‌ها و پنل‌ها</cite>
       </div>
-      <div class="auth-foot">© <?= date('Y') ?> <?= $textbotlang['panel']['loginPasswordPlaceholder'] ?></div>
+      <div class="auth-foot">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 10px #22c55e; display:inline-block;"></span>
+          <span>نسخه پایدار v0.0.2 Pro — کلیه حقوق محفوظ است © <?= date('Y') ?></span>
+        </div>
+      </div>
     </aside>
     <main class="auth-main">
       <div class="auth-box" style="animation:fadeUp .5s ease-out">
-        <h1><?= $textbotlang['panel']['loginButton'] ?></h1>
-        <p class="lede"><?= $textbotlang['panel']['loginRememberMe'] ?></p>
+        <div style="text-align:center; margin-bottom:24px;">
+          <div style="width:56px; height:56px; border-radius:16px; background:var(--grad); color:#fff; font-size:1.7rem; font-weight:800; display:inline-grid; place-items:center; box-shadow:0 0 24px var(--acg); margin-bottom:12px;">Z</div>
+          <h1 style="font-size:1.5rem; font-weight:800; margin-bottom:6px;">ورود به مدیریت Zorvex</h1>
+          <p class="lede" style="margin-bottom:0; font-size:0.85rem; color:var(--mute);">جهت دسترسی به داشبورد، مشخصات مدیر را وارد نمایید</p>
+        </div>
         <?php if ($error): ?>
           <div class="notice notice-no" style="margin-bottom:20px"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
         <form class="auth-form" method="POST" autocomplete="on">
-          <?php ?>
           <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
           <div class="field">
-            <label for="username"><?= $textbotlang['panel']['loginFooter'] ?></label>
+            <label for="username">نام کاربری ادمین</label>
             <input type="text" id="username" name="username" class="input" placeholder="admin"
               value="<?= htmlspecialchars($_POST['username'] ?? '') ?>" autocomplete="username" required autofocus
               maxlength="100">
           </div>
           <div class="field">
-            <label for="password"><?= $textbotlang['panel']['loginErrorTitle'] ?></label>
+            <label for="password">رمز عبور امنیتی</label>
             <input type="password" id="password" name="password" class="input" placeholder="••••••••"
               autocomplete="current-password" required maxlength="200">
           </div>
-          <button type="submit" class="btn btn-primary" id="loginBtn">
-            <span id="loginText"><?= $textbotlang['panel']['loginShowPassword'] ?></span>
+          <button type="submit" class="btn btn-primary" id="loginBtn" style="width:100%; justify-content:center; padding:12px; font-size:0.95rem; margin-top:8px;">
+            <span id="loginText">ورود به پنل مدیریت</span>
             <span id="loginSpin"
               style="display:none;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite"></span>
           </button>
         </form>
-        <div class="auth-bottom"><?= $textbotlang['panel']['loginHidePassword'] ?></div>
+        <div class="auth-bottom" style="display:flex; justify-content:space-between; align-items:center; margin-top:24px; padding-top:16px; font-size:0.75rem; color:var(--dim);">
+          <span>اتصال رمزگذاری‌شده SSL 🔒</span>
+          <a href="https://github.com/T3chHash/zorvex" target="_blank" style="color:var(--ac); font-weight:600;">گیت‌هاب Zorvex ↗</a>
+        </div>
       </div>
     </main>
   </div>

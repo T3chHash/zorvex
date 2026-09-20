@@ -230,7 +230,7 @@ You can also drive the installer entirely from the command line — handy for au
 | `--domain` | Domain name (e.g. `bot.example.com`) |
 | `--db-user` | Database username |
 | `--db-pass` | Database password |
-| `--version` | Specific release tag (e.g. `0.1.7`) |
+| `--version` | Specific release tag (e.g. `0.0.2`) |
 | `--channel` | `beta` · `release` · `auto` |
 | `-h`, `--help` | Show CLI help and exit |
 
@@ -242,10 +242,10 @@ zorvex install --channel auto
 
 # Fully non-interactive install
 zorvex install --name myvpnbot --token 123:ABC \
-              --admin 111 --domain bot.example.com --version 0.1.7
+              --admin 111 --domain bot.example.com --version 0.0.2
 
 # Update to a specific version or channel
-zorvex update --version 0.1.6
+zorvex update --version 0.0.2
 zorvex update --channel release
 
 # Remove
