@@ -36,33 +36,48 @@ register_shutdown_function(static function () {
        . '</body></html>';
 });
 
-ini_set('session.cookie_samesite', 'Lax');
-ini_set('session.cookie_httponly', '1');
-session_start();
-
-if (empty($_SESSION['_session_regenerated'])) {
-    session_regenerate_id(true);
-    $_SESSION['_session_regenerated'] = true;
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.use_only_cookies', '1');
+    session_set_cookie_params([
+        'lifetime' => 86400 * 30,
+        'path'     => '/',
+        'domain'   => '',
+        'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
 }
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/lib/icons.php';
 require_once __DIR__ . '/../jdf.php';
 
-
 $sessionUser = isset($_SESSION["user"]) && is_string($_SESSION["user"]) && $_SESSION["user"] !== ''
     ? $_SESSION["user"]
     : null;
 
-if ($sessionUser === null) {
+if ($sessionUser === null && empty($_SESSION["admin_logged_in"])) {
     header('Location: login.php');
     exit;
 }
 
-$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username LIMIT 1");
-$query->bindValue(':username', $sessionUser, PDO::PARAM_STR);
-$query->execute();
-$result = $query->fetch(PDO::FETCH_ASSOC);
+$result = null;
+if ($sessionUser !== null) {
+    $query = $pdo->prepare("SELECT * FROM admin WHERE username = :u OR id_admin = :u OR LOWER(username) = LOWER(:u) LIMIT 1");
+    $query->bindValue(':u', $sessionUser, PDO::PARAM_STR);
+    $query->execute();
+    $result = $query->fetch(PDO::FETCH_ASSOC);
+}
+
+if (!$result && !empty($_SESSION["admin_logged_in"])) {
+    $firstQ = $pdo->query("SELECT * FROM admin LIMIT 1");
+    $result = $firstQ ? $firstQ->fetch(PDO::FETCH_ASSOC) : null;
+    if ($result) {
+        $_SESSION["user"] = $result["username"];
+    }
+}
 
 if (!$result) {
     $_SESSION = [];

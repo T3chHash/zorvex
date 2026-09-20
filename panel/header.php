@@ -2,15 +2,23 @@
 
 
 if (session_status() === PHP_SESSION_NONE) {
-    ini_set('session.cookie_samesite', 'Lax');
     ini_set('session.cookie_httponly', '1');
+    ini_set('session.use_only_cookies', '1');
+    session_set_cookie_params([
+        'lifetime' => 86400 * 30,
+        'path'     => '/',
+        'domain'   => '',
+        'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
 // Panel version (read from the project root `version` file). Displayed in the
 // sidebar footer on every page. Always shown with a leading "v".
 $__panelVersionRaw = trim((string)@file_get_contents(__DIR__ . '/../version'));
-if ($__panelVersionRaw === '') $__panelVersionRaw = '1.0.5';
+if ($__panelVersionRaw === '') $__panelVersionRaw = '1.0.0';
 $__panelVersion = (stripos($__panelVersionRaw, 'v') === 0) ? $__panelVersionRaw : ('v' . $__panelVersionRaw);
 
 if (isset($_SESSION["user"])) {
@@ -21,26 +29,34 @@ if (isset($_SESSION["user"])) {
         $__raw_admin_ip = $__stmt_admin_ip->fetchColumn();
 
         $__admin_ip_list = [];
-        $__admin_ip_unlimited = false;
+        $__admin_ip_unlimited = true;
         if ($__raw_admin_ip !== false && $__raw_admin_ip !== null && $__raw_admin_ip !== '') {
             $__admin_ip_decoded = json_decode((string)$__raw_admin_ip, true);
             if (is_array($__admin_ip_decoded)) {
                 if (in_array('*', $__admin_ip_decoded, true) || in_array('all', $__admin_ip_decoded, true) || in_array('unlimited', $__admin_ip_decoded, true)) {
                     $__admin_ip_unlimited = true;
                 } else {
+                    $__admin_ip_unlimited = false;
                     $__admin_ip_list = $__admin_ip_decoded;
                 }
             } elseif ($__raw_admin_ip === '*' || $__raw_admin_ip === 'all' || $__raw_admin_ip === 'unlimited') {
                 $__admin_ip_unlimited = true;
             } elseif (filter_var($__raw_admin_ip, FILTER_VALIDATE_IP)) {
+                $__admin_ip_unlimited = false;
                 $__admin_ip_list = [$__raw_admin_ip];
             }
-        } else {
-            $__admin_ip_unlimited = true;
         }
 
-        $__current_ip = $_SERVER['REMOTE_ADDR'] ?? '';
-        $__allowed = $__admin_ip_unlimited || (!empty($__admin_ip_list) && in_array($__current_ip, $__admin_ip_list, true));
+        $__current_ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
+        if (str_contains($__current_ip, ',')) {
+            $__current_ip = trim(explode(',', $__current_ip)[0]);
+        }
+
+        $__allowed = true;
+        if (!$__admin_ip_unlimited && !empty($__admin_ip_list)) {
+            $__allowed = in_array($__current_ip, $__admin_ip_list, true);
+        }
+
         if (!$__allowed) {
             session_unset();
             session_destroy();

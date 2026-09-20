@@ -1,7 +1,7 @@
 {
     "name": "t3chhash/zorvex",
     "description": "Zorvex VPN Subscription Management Bot & Web Panel",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "type": "project",
     "license": "AGPL-3.0-or-later",
     "homepage": "https://github.com/T3chHash/zorvex",

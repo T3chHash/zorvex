@@ -27,16 +27,32 @@ register_shutdown_function(static function () {
        . '</body></html>';
 });
 
-ini_set('session.cookie_samesite', 'Lax');
-ini_set('session.cookie_httponly', '1');
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.use_only_cookies', '1');
+    session_set_cookie_params([
+        'lifetime' => 86400 * 30,
+        'path'     => '/',
+        'domain'   => '',
+        'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/lib/icons.php';
 require_once __DIR__ . '/../function.php';
 require_once __DIR__ . '/../botapi.php';
 require_once __DIR__ . '/../jdf.php';
 
-$user_ip = $_SERVER['REMOTE_ADDR'] ?? '';
+$user_ip = $_SERVER['HTTP_CF_CONNECTING_IP']
+    ?? $_SERVER['HTTP_X_FORWARDED_FOR']
+    ?? $_SERVER['REMOTE_ADDR']
+    ?? '';
+if (str_contains($user_ip, ',')) {
+    $user_ip = trim(explode(',', $user_ip)[0]);
+}
 
 $texterrr = "";
 $ip_denied = false;
@@ -47,75 +63,94 @@ if (isset($_POST['login'])) {
     $password = trim($passwordRaw);
 
     if ($username !== '' && ($password !== '' || $passwordRaw !== '')) {
-        $query = $pdo->prepare("SELECT * FROM admin WHERE username = :u OR id_admin = :u OR LOWER(username) = LOWER(:u) LIMIT 1");
-        $query->bindValue(':u', $username, PDO::PARAM_STR);
-        $query->execute();
-        $result = $query->fetch(PDO::FETCH_ASSOC);
+        $stmt = $pdo->prepare("SELECT * FROM admin WHERE username = :u OR id_admin = :u OR LOWER(username) = LOWER(:u)");
+        $stmt->bindValue(':u', $username, PDO::PARAM_STR);
+        $stmt->execute();
+        $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // If no match found by username/id_admin, and there is only 1 admin in the entire table, test that admin
+        if (empty($candidates)) {
+            $allQ = $pdo->query("SELECT * FROM admin");
+            $allRows = $allQ ? $allQ->fetchAll(PDO::FETCH_ASSOC) : [];
+            if (count($allRows) === 1) {
+                $candidates = $allRows;
+            }
+        }
+
+        $result = null;
         $passwordOk = false;
-        if ($result) {
-            $passInputs = array_values(array_unique([$password, $passwordRaw]));
-            $storedPass = (string)($result["password"] ?? '');
-            $storedHash = (string)($result["password_hash"] ?? '');
+        $passInputs = array_values(array_unique([$password, $passwordRaw]));
+
+        foreach ($candidates as $candidate) {
+            $storedPass = (string)($candidate["password"] ?? '');
+            $storedHash = (string)($candidate["password_hash"] ?? '');
 
             foreach ($passInputs as $pInput) {
                 if ($pInput === '') continue;
 
-                // 1. Check if `password` column is a bcrypt / argon2 hash (used by admin.php & settings.php)
+                // 1. Check if `password` column is a bcrypt / argon2 hash
                 if ($storedPass !== '') {
                     if (str_starts_with($storedPass, '$2') || str_starts_with($storedPass, '$argon2')) {
                         if (password_verify($pInput, $storedPass)) {
                             $passwordOk = true;
-                            break;
+                            $result = $candidate;
+                            break 2;
                         }
                     } else {
                         // Plain text check
                         if (hash_equals($storedPass, $pInput)) {
                             $passwordOk = true;
-                            break;
+                            $result = $candidate;
+                            break 2;
                         }
                         // MD5 check
                         if (hash_equals($storedPass, md5($pInput)) || hash_equals(strtolower($storedPass), md5($pInput))) {
                             $passwordOk = true;
-                            break;
+                            $result = $candidate;
+                            break 2;
                         }
                         // SHA256 check
                         if (hash_equals($storedPass, hash('sha256', $pInput))) {
                             $passwordOk = true;
-                            break;
+                            $result = $candidate;
+                            break 2;
                         }
                     }
                 }
 
                 // 2. Check if `password_hash` column is a bcrypt / argon2 hash
-                if (!$passwordOk && $storedHash !== '') {
+                if ($storedHash !== '') {
                     if (str_starts_with($storedHash, '$2') || str_starts_with($storedHash, '$argon2')) {
                         if (password_verify($pInput, $storedHash)) {
                             $passwordOk = true;
-                            break;
+                            $result = $candidate;
+                            break 2;
                         }
                     } else {
                         if (hash_equals($storedHash, $pInput)) {
                             $passwordOk = true;
-                            break;
+                            $result = $candidate;
+                            break 2;
                         }
                     }
                 }
 
                 // 3. Fallback generic password_verify
-                if (!$passwordOk && $storedPass !== '') {
+                if ($storedPass !== '') {
                     try {
                         if (@password_verify($pInput, $storedPass)) {
                             $passwordOk = true;
-                            break;
+                            $result = $candidate;
+                            break 2;
                         }
                     } catch (\Throwable $e) {}
                 }
-                if (!$passwordOk && $storedHash !== '') {
+                if ($storedHash !== '') {
                     try {
                         if (@password_verify($pInput, $storedHash)) {
                             $passwordOk = true;
-                            break;
+                            $result = $candidate;
+                            break 2;
                         }
                     } catch (\Throwable $e) {}
                 }
@@ -141,7 +176,7 @@ if (isset($_POST['login'])) {
             }
         }
 
-        if (!$result) {
+        if (empty($candidates)) {
             $texterrr = 'نام کاربری یا رمزعبور وارد شده اشتباه است!';
         } elseif (!$passwordOk) {
             $texterrr = 'رمز صحیح نمی باشد';
@@ -149,8 +184,6 @@ if (isset($_POST['login'])) {
             http_response_code(403);
             $ip_denied = true;
         } else {
-
-
             session_regenerate_id(true);
             $authUsername = trim((string)($result["username"] ?? ''));
             if ($authUsername === '') {
@@ -163,46 +196,16 @@ if (isset($_POST['login'])) {
                 } catch (\Throwable $e) {}
             }
             $_SESSION["user"] = $authUsername;
+            $_SESSION["admin_user"] = $authUsername;
+            $_SESSION["admin_logged_in"] = true;
+            $_SESSION["admin_id"] = (string)($result["id_admin"] ?? '');
+            $_SESSION["rule"] = (string)($result["rule"] ?? 'administrator');
+            $_SESSION["_session_regenerated"] = true;
 
-
+            // Commit session to storage before redirect
             session_write_close();
 
-
             header('Location: index.php', true, 302);
-
-
-            ignore_user_abort(true);
-            if (function_exists('fastcgi_finish_request')) {
-                @fastcgi_finish_request();
-            } else {
-                if (!headers_sent()) {
-                    @header('Connection: close');
-                    @header('Content-Length: 0');
-                }
-                while (ob_get_level() > 0) { @ob_end_flush(); }
-                @flush();
-            }
-
-
-            try {
-                $setting = select("setting", "*", null, null);
-                $otherreport = select("topicid", "idreport", "report", "otherreport", "select")['idreport'] ?? null;
-                if (!empty($setting['Channel_Report']) && !empty($otherreport)) {
-                    $loginText = "🔐 ورود موفق به پنل تحت وب\n\n"
-                        . "👤 نام کاربری:\n" . $username . "\n\n"
-                        . "🪪 شناسه ادمین:\n" . $result['id_admin'] . "\n\n"
-                        . "🌐 IP ورود:\n" . $user_ip . "\n\n"
-                        . "🕐 زمان ورود:\n" . (function_exists('jdate') ? jdate('Y/m/d H:i:s', time(), '', 'Asia/Tehran', 'en') : date('Y/m/d H:i:s'));
-                    telegram('sendmessage', [
-                        'chat_id'           => $setting['Channel_Report'],
-                        'message_thread_id' => $otherreport,
-                        'text'              => $loginText,
-                        'parse_mode'        => "HTML"
-                    ]);
-                }
-            } catch (\Throwable $e) {
-                @error_log('Login notify failed: ' . $e->getMessage());
-            }
             exit;
         }
     } else {

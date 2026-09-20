@@ -11,7 +11,7 @@ require_once __DIR__ . '/../function.php';
 require_once __DIR__ . '/../botapi.php';
 require_once __DIR__ . '/lib/icons.php';
 
-$query = $pdo->prepare("SELECT * FROM admin WHERE username=:username");
+$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username OR id_admin = :username LIMIT 1");
 $query->bindValue(":username", $_SESSION["user"] ?? '', PDO::PARAM_STR);
 $query->execute();
 $adminRow = $query->fetch(PDO::FETCH_ASSOC);

@@ -10,7 +10,7 @@ require_once __DIR__ . '/lib/search_filter.php';
 require_once __DIR__ . '/lib/csrf.php';
 require_once __DIR__ . '/../function.php';
 
-$query = $pdo->prepare("SELECT * FROM admin WHERE username=:username");
+$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username OR id_admin = :username LIMIT 1");
 $query->bindParam("username", $_SESSION["user"], PDO::PARAM_STR);
 $query->execute();
 $result = $query->fetch(PDO::FETCH_ASSOC);

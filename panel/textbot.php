@@ -20,7 +20,7 @@ require_once __DIR__ . '/lib/icons.php';
 require_once __DIR__ . '/lib/csrf.php';
 require_once __DIR__ . '/../re/rx/function/database_helpers_1.php';
 
-$query = $pdo->prepare("SELECT * FROM admin WHERE username=:username");
+$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username OR id_admin = :username LIMIT 1");
 $query->bindValue(":username", $_SESSION["user"] ?? '', PDO::PARAM_STR);
 $query->execute();
 $adminRow = $query->fetch(PDO::FETCH_ASSOC);

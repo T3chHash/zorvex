@@ -18,7 +18,7 @@ require_once __DIR__ . '/lib/remaining.php';
 require_once __DIR__ . '/lib/item_parser.php';
 require_once __DIR__ . '/../re/rx/function/nm_stock.php';
 
-$query = $pdo->prepare("SELECT * FROM admin WHERE username=:username");
+$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username OR id_admin = :username LIMIT 1");
 $query->bindValue(":username", $_SESSION["user"] ?? '', PDO::PARAM_STR);
 $query->execute();
 $adminRow = $query->fetch(PDO::FETCH_ASSOC);

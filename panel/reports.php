@@ -54,7 +54,7 @@ if ($sessionUser === null) {
     exit;
 }
 
-$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username LIMIT 1");
+$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username OR id_admin = :username LIMIT 1");
 $query->bindValue(':username', $sessionUser, PDO::PARAM_STR);
 $query->execute();
 $result = $query->fetch(PDO::FETCH_ASSOC);

@@ -11,7 +11,7 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/lib/icons.php';
 require_once __DIR__ . '/../re/rx/function/database_helpers_1.php';
 
-$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username");
+$query = $pdo->prepare("SELECT * FROM admin WHERE username = :username OR id_admin = :username LIMIT 1");
 $query->execute([':username' => $_SESSION['user'] ?? '']);
 $adminRow = $query->fetch(PDO::FETCH_ASSOC);
 if (!isset($_SESSION['user']) || !$adminRow) {
