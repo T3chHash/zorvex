@@ -782,15 +782,15 @@ get_latest_version() {
     tags=$(curl -fsSL --max-time 6 -H "Cache-Control: no-cache" "https://api.github.com/repos/${GIT_REPO}/tags?t=$(date +%s)" 2>/dev/null)
     if [ -n "$tags" ]; then
         if command -v jq >/dev/null 2>&1; then
-            v=$(echo "$tags" | jq -r '.[].name' 2>/dev/null | grep -E '^[0-9]' | sort -V | tail -1)
+            v=$(echo "$tags" | jq -r '.[].name' 2>/dev/null | grep -E '^[vV]?[0-9]' | sed -E 's/^[vV]//' | sort -V | tail -1)
         else
-            v=$(echo "$tags" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)".*/\1/' | grep -E '^[0-9]' | sort -V | tail -1)
+            v=$(echo "$tags" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)".*/\1/' | grep -E '^[vV]?[0-9]' | sed -E 's/^[vV]//' | sort -V | tail -1)
         fi
     fi
 
     # 2. If empty or rate-limited, query git ls-remote directly (100% real-time, zero CDN delay)
     if [ -z "$v" ]; then
-        v=$(git ls-remote --tags --refs "https://github.com/${GIT_REPO}.git" 2>/dev/null | awk -F'/' '{print $NF}' | grep -E '^[0-9]' | sort -V | tail -1)
+        v=$(git ls-remote --tags --refs "https://github.com/${GIT_REPO}.git" 2>/dev/null | awk -F'/' '{print $NF}' | grep -E '^[vV]?[0-9]' | sed -E 's/^[vV]//' | sort -V | tail -1)
     fi
 
     # 3. Fallback to raw version file directly
