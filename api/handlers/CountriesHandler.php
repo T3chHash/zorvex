@@ -13,10 +13,11 @@ final class CountriesHandler extends BaseHandler
 
         global $textbotlang;
 
+        $userAgent = $this->user['agent'] ?? 'f';
         $rows = FaoximaDb::fetchAll(
             "SELECT * FROM marzban_panel
               WHERE status = 'active'
-                AND (agent = :agent OR agent = 'all')
+                AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)
                 AND (
                     type != 'Manualsale'
                     OR EXISTS (
@@ -25,7 +26,7 @@ final class CountriesHandler extends BaseHandler
                            AND manualsell.status = 'active'
                     )
                 )",
-            [':agent' => $this->user['agent']]
+            [':agent' => $userAgent]
         );
 
         $isNoteGlobal = false;

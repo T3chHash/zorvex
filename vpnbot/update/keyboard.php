@@ -217,13 +217,30 @@ $KeyboardBalance = json_encode([
     ]
 ]);
 
-function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $statuscustom = false, $backuser = "backuser", $valuetow = null, $customvolume = "customsellvolume")
+function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $statuscustom = false, $backuser = "backuser", $valuetow = null, $customvolume = "customsellvolume", $queryParams = [])
 {
     global $pdo, $textbotlang;
     $product = ['inline_keyboard' => []];
-    $statusshowprice = select("shopSetting", "*", "Namevalue", "statusshowprice", "select")['value'];
-    $stmt = $pdo->prepare($query);
-    $stmt->execute();
+    $statusshowprice = 'offshowprice';
+    try {
+        $showPriceRow = select("shopSetting", "*", "Namevalue", "statusshowprice", "select");
+        if (is_array($showPriceRow) && isset($showPriceRow['value'])) {
+            $statusshowprice = (string)$showPriceRow['value'];
+        }
+    } catch (\Throwable $e) {}
+
+    try {
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($queryParams);
+    } catch (\Throwable $e) {
+        error_log("[KeyboardProduct vpnbot] query error: " . $e->getMessage());
+        return json_encode([
+            'inline_keyboard' => [
+                [['text' => $textbotlang['users']['status']['backinfo'] ?? 'بازگشت', 'callback_data' => $backuser]]
+            ]
+        ]);
+    }
+
     $valuetow = $valuetow != null ? "-$valuetow" : "";
     while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $productlist = readJsonFileIfExists('product.json');
@@ -233,21 +250,37 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
         $result['name_product'] = empty($productlist_name[$result['code_product']]) ? $result['name_product'] : $productlist_name[$result['code_product']];
         if (faoxima_is_in_json_list($location, $result['hide_panel'] ?? null))
             continue;
-        if (intval($pricediscount) != 0) {
-            $resultper = ($result['price_product'] * $pricediscount) / 100;
-            $result['price_product'] = $result['price_product'] - $resultper;
+
+        $rawPrice = (string)($result['price_product'] ?? '0');
+        $cleanPrice = floatval(preg_replace('/[^\d.]/', '', $rawPrice) ?: 0);
+        $discountVal = intval($pricediscount ?? 0);
+        if ($discountVal != 0) {
+            $resultper = ($cleanPrice * $discountVal) / 100;
+            $cleanPrice = max(0, $cleanPrice - $resultper);
         }
-        $namekeyboard = $result['name_product'] . " - " . number_format($result['price_product']) . "تومان";
-        if ($statusshowprice == "onshowprice")
-            $result['name_product'] = $namekeyboard;
+
+        $namekeyboard = ($result['name_product'] ?? '') . " - " . number_format($cleanPrice) . " تومان";
+        if ($statusshowprice === "onshowprice")
+            $displayName = $namekeyboard;
+        else
+            $displayName = $result['name_product'] ?? '';
+
+        $codeProd = $result['code_product'] ?? '';
         $product['inline_keyboard'][] = [
-            ['text' => $result['name_product'], 'callback_data' => "{$datakeyboard}{$result['code_product']}{$valuetow}"]
+            ['text' => $displayName, 'callback_data' => "{$datakeyboard}{$codeProd}{$valuetow}"]
         ];
     }
+
+    if (empty($product['inline_keyboard'])) {
+        $product['inline_keyboard'][] = [
+            ['text' => '❌ محصولی یافت نشد', 'callback_data' => 'none_product']
+        ];
+    }
+
     if ($statuscustom)
-        $product['inline_keyboard'][] = [['text' => $textbotlang['users']['customSellVolume']['title'], 'callback_data' => $customvolume]];
+        $product['inline_keyboard'][] = [['text' => $textbotlang['users']['customSellVolume']['title'] ?? 'خرید حجم دلخواه', 'callback_data' => $customvolume]];
     $product['inline_keyboard'][] = [
-        ['text' => $textbotlang['users']['status']['backinfo'], 'callback_data' => $backuser],
+        ['text' => $textbotlang['users']['status']['backinfo'] ?? 'بازگشت', 'callback_data' => $backuser],
     ];
     return json_encode($product);
 }

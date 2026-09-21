@@ -28,8 +28,8 @@ final class CategoriesHandler extends BaseHandler
             $count = (int) FaoximaDb::fetchScalar(
                 "SELECT COUNT(*) FROM product
                   WHERE (FIND_IN_SET(:location, Location) > 0 OR Location = '/all')
-                    AND FIND_IN_SET(:category, category) > 0
-                    AND (FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0 OR agent IN ('all', 'allusers'))",
+                    AND (category = :category OR FIND_IN_SET(:category, category) > 0)
+                    AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)",
                 [
                     ':location' => $panel['name_panel'],
                     ':category' => $cat['remark'],

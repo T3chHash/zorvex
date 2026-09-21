@@ -588,7 +588,8 @@ $helpappremove['keyboard'][] = [
 ];
 $json_list_remove_helpـlink = json_encode($helpappremove);
 //------------------  [ listpanelusers ]----------------//
-$agentVal = !empty($users['agent']) ? $users['agent'] : 'f';
+$currentUser = $user ?? ($users ?? []);
+$agentVal = !empty($currentUser['agent']) ? $currentUser['agent'] : 'f';
 $activePanelRows = [];
 try {
     $stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)");
@@ -618,7 +619,7 @@ if ($panelcount > 10) {
             continue;
         if ($result['type'] == "Manualsale" && empty($manualsellCounts[$result['code_panel']]))
             continue;
-        if ($users['step'] == "getusernameinfo") {
+        if (($currentUser['step'] ?? '') == "getusernameinfo") {
             $temp_row[] = ['text' => $result['name_panel'], 'callback_data' => "locationnotuser_{$result['code_panel']}"];
         } else {
             $temp_row[] = ['text' => $result['name_panel'], 'callback_data' => "location_{$result['code_panel']}"];
@@ -637,7 +638,7 @@ if ($panelcount > 10) {
             continue;
         if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null))
             continue;
-        if ($users['step'] == "getusernameinfo") {
+        if (($currentUser['step'] ?? '') == "getusernameinfo") {
             $list_marzban_panel_users['inline_keyboard'][] = [
                 ['text' => $result['name_panel'], 'callback_data' => "locationnotuser_{$result['code_panel']}"]
             ];
@@ -651,7 +652,7 @@ if ($panelcount > 10) {
 $statusnote = false;
 if ($setting['statusnamecustom'] == 'onnamecustom')
     $statusnote = true;
-if ($setting['statusnoteforf'] == "0" && $users['agent'] == "f")
+if (($setting['statusnoteforf'] ?? '') == "0" && ($currentUser['agent'] ?? 'f') == "f")
     $statusnote = false;
 if ($statusnote) {
     $list_marzban_panel_users['inline_keyboard'][] = [
@@ -1338,9 +1339,27 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
 {
     global $pdo, $textbotlang, $from_id;
     $product = ['inline_keyboard' => []];
-    $statusshowprice = select("shopSetting", "*", "Namevalue", "statusshowprice", "select")['value'];
-    $stmt = $pdo->prepare($query);
-    $stmt->execute($queryParams);
+
+    $statusshowprice = 'offshowprice';
+    try {
+        $showPriceRow = select("shopSetting", "*", "Namevalue", "statusshowprice", "select");
+        if (is_array($showPriceRow) && isset($showPriceRow['value'])) {
+            $statusshowprice = (string)$showPriceRow['value'];
+        }
+    } catch (\Throwable $e) {}
+
+    try {
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($queryParams);
+    } catch (\Throwable $e) {
+        error_log("[KeyboardProduct] query error: " . $e->getMessage());
+        return json_encode([
+            'inline_keyboard' => [
+                [['text' => $textbotlang['users']['status']['backinfo'] ?? 'بازگشت', 'callback_data' => $backuser]]
+            ]
+        ]);
+    }
+
     if ($valuetow != null) {
         $valuetow = "-$valuetow";
     } else {
@@ -1350,35 +1369,57 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
     while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
         if (faoxima_is_in_json_list($location, $result['hide_panel'] ?? null))
             continue;
-        if ($result['one_buy_status'] == "1") {
+        if (($result['one_buy_status'] ?? '0') === "1") {
             if ($countorder === null) {
-                $stmts2 = $pdo->prepare("SELECT COUNT(*) FROM invoice WHERE Status != 'Unpaid' AND id_user = :id_user");
-                $stmts2->bindValue(':id_user', $from_id);
-                $stmts2->execute();
-                $countorder = (int) $stmts2->fetchColumn();
+                try {
+                    $stmts2 = $pdo->prepare("SELECT COUNT(*) FROM invoice WHERE Status != 'Unpaid' AND id_user = :id_user");
+                    $stmts2->bindValue(':id_user', $from_id);
+                    $stmts2->execute();
+                    $countorder = (int) $stmts2->fetchColumn();
+                } catch (\Throwable $e) {
+                    $countorder = 0;
+                }
             }
             if ($countorder != 0)
                 continue;
         }
-        if (intval($pricediscount) != 0) {
-            $resultper = ($result['price_product'] * $pricediscount) / 100;
-            $result['price_product'] = $result['price_product'] - $resultper;
+
+        $rawPrice = (string)($result['price_product'] ?? '0');
+        $cleanPrice = floatval(preg_replace('/[^\d.]/', '', $rawPrice) ?: 0);
+        $discountVal = intval($pricediscount ?? 0);
+        if ($discountVal != 0) {
+            $resultper = ($cleanPrice * $discountVal) / 100;
+            $cleanPrice = max(0, $cleanPrice - $resultper);
         }
-        $namekeyboard = $result['name_product'] . " - " . number_format($result['price_product']) . $textbotlang['common']['labels']['toman'];
-        if ($statusshowprice == "onshowprice") {
-            $result['name_product'] = $namekeyboard;
+
+        $tomanUnit = $textbotlang['common']['labels']['toman'] ?? ($textbotlang['common']['labels']['tomanUnit'] ?? ' تومان');
+        $namekeyboard = ($result['name_product'] ?? '') . " - " . number_format($cleanPrice) . " " . trim($tomanUnit);
+        if ($statusshowprice === "onshowprice") {
+            $displayName = $namekeyboard;
+        } else {
+            $displayName = $result['name_product'] ?? '';
         }
+
+        $codeProd = $result['code_product'] ?? '';
         $product['inline_keyboard'][] = [
-            ['text' => $result['name_product'], 'callback_data' => "{$datakeyboard}{$result['code_product']}{$valuetow}"]
+            ['text' => $displayName, 'callback_data' => "{$datakeyboard}{$codeProd}{$valuetow}"]
         ];
     }
+
+    if (empty($product['inline_keyboard'])) {
+        $product['inline_keyboard'][] = [
+            ['text' => '❌ محصولی یافت نشد', 'callback_data' => 'none_product']
+        ];
+    }
+
     if ($statuscustom)
-        $product['inline_keyboard'][] = [['text' => $textbotlang['users']['customSellVolume']['title'], 'callback_data' => $customvolume]];
+        $product['inline_keyboard'][] = [['text' => $textbotlang['users']['customSellVolume']['title'] ?? 'خرید حجم دلخواه', 'callback_data' => $customvolume]];
     $product['inline_keyboard'][] = [
-        ['text' => $textbotlang['users']['status']['backinfo'], 'callback_data' => $backuser],
+        ['text' => $textbotlang['users']['status']['backinfo'] ?? 'بازگشت', 'callback_data' => $backuser],
     ];
     return json_encode($product);
 }
+
 function KeyboardCategory($location, $agent, $backuser = "backuser")
 {
     global $pdo, $textbotlang;
@@ -1403,8 +1444,15 @@ function KeyboardCategory($location, $agent, $backuser = "backuser")
             continue;
         $list_category['inline_keyboard'][] = [['text' => $row['remark'], 'callback_data' => "categorynames_" . $row['id']]];
     }
+
+    if (empty($list_category['inline_keyboard'])) {
+        $list_category['inline_keyboard'][] = [
+            ['text' => '📦 مشاهده همه محصولات', 'callback_data' => 'categorynames_all']
+        ];
+    }
+
     $list_category['inline_keyboard'][] = [
-        ['text' => $textbotlang['keyboard']['backToPreviousMenu'], "callback_data" => $backuser],
+        ['text' => $textbotlang['keyboard']['backToPreviousMenu'] ?? 'بازگشت به منوی قبلی', "callback_data" => $backuser],
     ];
     return json_encode($list_category);
 }
@@ -1416,84 +1464,63 @@ function keyboardTimeCategory($name_panel, $agent, $callback_data = "producttime
     $stmt->bindValue(':name_panel', (string)$name_panel, PDO::PARAM_STR);
     $stmt->bindValue(':agent', (string)$agent, PDO::PARAM_STR);
     $stmt->execute();
-    $montheproduct = array_flip(array_flip($stmt->fetchAll(PDO::FETCH_COLUMN)));
+    $rawTimes = array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    $rawTimes = array_values(array_unique(array_filter($rawTimes, static function($v) { return $v !== ''; })));
+
     $monthkeyboard = ['inline_keyboard' => []];
-    if (in_array("1", $montheproduct)) {
+
+    // Standard durations mapping: days => [aliases, textbotlang duration key, fallback label]
+    $standards = [
+        ['days' => 1,   'aliases' => ['1'],          'key' => '1day',     'label' => '⏳ یک روزه'],
+        ['days' => 7,   'aliases' => ['7'],          'key' => '7day',     'label' => '⏳ هفت روزه'],
+        ['days' => 30,  'aliases' => ['30', '31'],   'key' => '1',        'label' => '⏳ یک ماه'],
+        ['days' => 60,  'aliases' => ['60', '61'],   'key' => '2',        'label' => '⏳ دو ماه'],
+        ['days' => 90,  'aliases' => ['90', '91'],   'key' => '3',        'label' => '⏳ سه ماه'],
+        ['days' => 120, 'aliases' => ['120', '121'], 'key' => '4',        'label' => '⏳ چهار ماه'],
+        ['days' => 180, 'aliases' => ['180', '181'], 'key' => '6',        'label' => '⏳ شش ماه'],
+        ['days' => 365, 'aliases' => ['365'],        'key' => '365',      'label' => '⏳ یکساله'],
+        ['days' => 0,   'aliases' => ['0'],          'key' => 'byVolume', 'label' => '🔋 حجمی'],
+    ];
+
+    $matchedAliases = [];
+    foreach ($standards as $std) {
+        $found = null;
+        foreach ($std['aliases'] as $al) {
+            if (in_array($al, $rawTimes, true)) {
+                $found = $al;
+                $matchedAliases[] = $al;
+            }
+        }
+        if ($found !== null) {
+            $labelText = $textbotlang['common']['duration'][$std['key']] ?? ($textbotlang['Admin']['month'][$std['key']] ?? $std['label']);
+            $monthkeyboard['inline_keyboard'][] = [
+                ['text' => $labelText, 'callback_data' => "{$callback_data}{$found}"]
+            ];
+        }
+    }
+
+    // Dynamic unmapped days
+    foreach ($rawTimes as $rt) {
+        if (in_array($rt, $matchedAliases, true)) continue;
+        $intDays = (int)$rt;
+        $label = $intDays === 0 ? '🔋 حجمی (نامحدود)' : "⏳ {$intDays} روزه";
         $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['1day'], 'callback_data' => "{$callback_data}1"]
+            ['text' => $label, 'callback_data' => "{$callback_data}{$rt}"]
         ];
     }
-    if (in_array("7", $montheproduct)) {
+
+    if (empty($monthkeyboard['inline_keyboard'])) {
         $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['7day'], 'callback_data' => "{$callback_data}7"]
+            ['text' => '❌ محصولی یافت نشد', 'callback_data' => 'none_product']
         ];
     }
-    if (in_array("31", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['1'], 'callback_data' => "{$callback_data}31"]
-        ];
-    }
-    if (in_array("30", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['1'], 'callback_data' => "{$callback_data}30"]
-        ];
-    }
-    if (in_array("61", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['2'], 'callback_data' => "{$callback_data}61"]
-        ];
-    }
-    if (in_array("60", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['2'], 'callback_data' => "{$callback_data}60"]
-        ];
-    }
-    if (in_array("91", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['3'], 'callback_data' => "{$callback_data}91"]
-        ];
-    }
-    if (in_array("90", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['3'], 'callback_data' => "{$callback_data}90"]
-        ];
-    }
-    if (in_array("121", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['4'], 'callback_data' => "{$callback_data}121"]
-        ];
-    }
-    if (in_array("120", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['4'], 'callback_data' => "{$callback_data}120"]
-        ];
-    }
-    if (in_array("181", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['6'], 'callback_data' => "{$callback_data}181"]
-        ];
-    }
-    if (in_array("180", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['6'], 'callback_data' => "{$callback_data}180"]
-        ];
-    }
-    if (in_array("365", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['365'], 'callback_data' => "{$callback_data}365"]
-        ];
-    }
-    if (in_array("0", $montheproduct)) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => $textbotlang['common']['duration']['byVolume'], 'callback_data' => "{$callback_data}0"]
-        ];
-    }
+
     if ($statusbtnextend)
-        $monthkeyboard['inline_keyboard'][] = [['text' => $textbotlang['keyboard']['renewCurrentPlan'], 'callback_data' => "exntedagei"]];
+        $monthkeyboard['inline_keyboard'][] = [['text' => $textbotlang['keyboard']['renewCurrentPlan'] ?? 'تمدید سرویس فعلی', 'callback_data' => "exntedagei"]];
     if ($statuscustomvolume == true)
-        $monthkeyboard['inline_keyboard'][] = [['text' => $textbotlang['users']['customSellVolume']['title'], 'callback_data' => "customsellvolume"]];
+        $monthkeyboard['inline_keyboard'][] = [['text' => $textbotlang['users']['customSellVolume']['title'] ?? 'خرید حجم دلخواه', 'callback_data' => "customsellvolume"]];
     $monthkeyboard['inline_keyboard'][] = [
-        ['text' => $textbotlang['users']['status']['backinfo'], 'callback_data' => $callback_data_back]
+        ['text' => $textbotlang['users']['status']['backinfo'] ?? 'بازگشت', 'callback_data' => $callback_data_back]
     ];
     return json_encode($monthkeyboard);
 }

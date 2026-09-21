@@ -2961,3 +2961,139 @@ if (!function_exists('is_buy_command')) {
         return false;
     }
 }
+
+if (!function_exists('rx_product_allows_agent')) {
+    function rx_product_allows_agent($product, $agent): bool {
+        if (!is_array($product)) return true;
+        $pAgent = trim((string)($product['agent'] ?? 'f'));
+        if ($pAgent === '' || $pAgent === 'all' || $pAgent === 'allusers') {
+            return true;
+        }
+        $uAgent = trim((string)($agent ?? 'f'));
+        if ($uAgent === '') {
+            $uAgent = 'f';
+        }
+        if ($pAgent === $uAgent) {
+            return true;
+        }
+        $parts = array_map('trim', explode(',', $pAgent));
+        return in_array($uAgent, $parts, true) || in_array('all', $parts, true) || in_array('allusers', $parts, true);
+    }
+}
+
+if (!function_exists('panel_creation_limit_reached')) {
+    function panel_creation_limit_reached($panel): bool {
+        global $pdo;
+        if (is_string($panel)) {
+            $panel = select('marzban_panel', '*', 'code_panel', $panel, 'select')
+                  ?: select('marzban_panel', '*', 'name_panel', $panel, 'select');
+        }
+        if (!is_array($panel) || empty($panel)) {
+            return false;
+        }
+        $limit = $panel['limit_panel'] ?? null;
+        if ($limit === null || $limit === '' || $limit === 'unlimted' || $limit === 'unlimited' || !is_numeric($limit)) {
+            return false;
+        }
+        $limitInt = (int)$limit;
+        if ($limitInt <= 0) {
+            return false;
+        }
+        $name = $panel['name_panel'] ?? '';
+        if ($name === '') {
+            return false;
+        }
+        try {
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND Service_location = :loc");
+            $stmt->execute([':loc' => $name]);
+            $count = (int)$stmt->fetchColumn();
+            return $count >= $limitInt;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+}
+
+if (!function_exists('panel_creation_limit_reached_unlocked')) {
+    function panel_creation_limit_reached_unlocked($panel): bool {
+        return panel_creation_limit_reached($panel);
+    }
+}
+
+if (!function_exists('panel_feature_enabled')) {
+    function panel_feature_enabled($panel, string $key): bool {
+        static $settingCache = null;
+        static $shopSettingCache = [];
+
+        if ($settingCache === null) {
+            try {
+                $settingCache = select('setting', '*');
+            } catch (\Throwable $e) {
+                $settingCache = [];
+            }
+        }
+
+        $getShopVal = function (string $name, string $default) use (&$shopSettingCache): string {
+            if (isset($shopSettingCache[$name])) {
+                return $shopSettingCache[$name];
+            }
+            try {
+                $row = select('shopSetting', '*', 'Namevalue', $name, 'select');
+                $val = (is_array($row) && isset($row['value'])) ? (string)$row['value'] : $default;
+            } catch (\Throwable $e) {
+                $val = $default;
+            }
+            $shopSettingCache[$name] = $val;
+            return $val;
+        };
+
+        switch ($key) {
+            case 'categorygeneral':
+                return (($settingCache['statuscategorygenral'] ?? 'offcategorys') === 'oncategorys');
+
+            case 'categorytime':
+                return (($settingCache['statuscategory'] ?? 'oncategory') !== 'offcategory');
+
+            case 'timeextra':
+                return ($getShopVal('statustimeextra', 'ontimeextraa') === 'ontimeextraa');
+
+            case 'extravolume':
+                return ($getShopVal('statusextravolume', 'onextra') === 'onextra');
+
+            case 'disorder':
+                return ($getShopVal('statusdisorder', 'ondisorder') === 'ondisorder');
+
+            case 'changeservice':
+                return ($getShopVal('statuschangeservice', 'onstatus') === 'onstatus');
+
+            case 'configbtn':
+                return ($getShopVal('statusconfig', 'onconfig') === 'onconfig');
+
+            case 'refund':
+                return ($getShopVal('statusrefund', 'on') === 'on');
+
+            case 'directbuy':
+                return ($getShopVal('statusdirectbuy', 'ondirectbuy') === 'ondirectbuy');
+
+            case 'showprice':
+                return ($getShopVal('statusshowprice', 'onshowprice') === 'onshowprice');
+
+            default:
+                return true;
+        }
+    }
+}
+
+if (!function_exists('panel_limit_lock_acquire')) {
+    function panel_limit_lock_acquire(string $panelName): string {
+        return $panelName;
+    }
+}
+
+if (!function_exists('panel_limit_lock_release')) {
+    function panel_limit_lock_release($lockKey): void {
+        // Safe no-op lock release
+    }
+}
+
+

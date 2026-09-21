@@ -3619,19 +3619,35 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectDuration'], $monthkeyboard);
     }
 } elseif (preg_match('/^categorynames_(.*)/', $datain, $dataget)) {
-    $categorynames = $dataget[1];
-    $categorynames = select("category", "remark", "id", $categorynames, "select")['remark'];
-    $userdate = json_decode($user['Processing_value'], true);
+    $catId = $dataget[1];
+    $userdate = json_decode($user['Processing_value'] ?? '', true);
+    if (!is_array($userdate) || empty($userdate['name_panel'])) {
+        sendmessage($from_id, $textbotlang['users']['sell']['panelUnavailable'], $keyboard, 'HTML');
+        step('home', $from_id);
+        return;
+    }
+    $userAgent = !empty($user['agent']) ? $user['agent'] : 'f';
+    $catFilter = "";
+    $queryParams = [':loc' => $userdate['name_panel'], ':agent' => $userAgent];
+
+    if ($catId !== 'all') {
+        $catRow = select("category", "remark", "id", $catId, "select");
+        $categoryRemark = is_array($catRow) ? ($catRow['remark'] ?? '') : '';
+        if ($categoryRemark !== '') {
+            $catFilter = " AND (category = :category OR FIND_IN_SET(:category, category) > 0)";
+            $queryParams[':category'] = $categoryRemark;
+        }
+    }
+
     if (isset($userdate['monthproduct'])) {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0) AND (category = :category OR FIND_IN_SET(:category, category) > 0) AND Service_time = :stime";
-        $queryParams = [':loc' => $userdate['name_panel'], ':agent' => $user['agent'], ':category' => $categorynames, ':stime' => $userdate['monthproduct']];
+        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0){$catFilter} AND Service_time = :stime";
+        $queryParams[':stime'] = $userdate['monthproduct'];
     } else {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0) AND (category = :category OR FIND_IN_SET(:category, category) > 0)";
-        $queryParams = [':loc' => $userdate['name_panel'], ':agent' => $user['agent'], ':category' => $categorynames];
+        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0){$catFilter}";
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
     $cvDecoded = !empty($marzban_list_get['customvolume']) ? json_decode($marzban_list_get['customvolume'], true) : [];
-    $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$user['agent']] ?? null) : null;
+    $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$userAgent] ?? null) : null;
     if (in_array(usernameMethodKey($marzban_list_get['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
         $datakeyboard = "prodcutservices_";
     } else {
@@ -3813,7 +3829,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         $info_product['Service_time'] = $parts[1];
         $info_product['price_product'] = ($parts[2] * $custompricevalue) + ($parts[1] * $customtimevalueprice);
     } else {
-        $info_product = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :location OR Location = '/all') LIMIT 1");
+        $info_product = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) LIMIT 1");
         $info_product->bindValue(':code_product', $loc, PDO::PARAM_STR);
         $info_product->bindValue(':location', $userdate['name_panel'], PDO::PARAM_STR);
         $info_product->execute();
@@ -3888,7 +3904,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         $info_product['price_product'] = ($parts[2] * $custompricevalue) + ($parts[1] * $customtimevalueprice);
         $info_product['data_limit_reset'] = "no_reset";
     } else {
-        $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :location OR Location = '/all') LIMIT 1");
+        $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) LIMIT 1");
         $stmt->execute([
             ':code_product' => $user['Processing_value_one'],
             ':location' => $userdate['name_panel']
@@ -4184,7 +4200,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         sendmessage($from_id, $textbotlang['users']['sell']['restartFromStart'], $keyboard, 'HTML');
         return;
     }
-    $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :Location or Location = '/all') LIMIT 1");
+    $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :Location or Location = '/all' OR FIND_IN_SET(:Location, Location) > 0) LIMIT 1");
     $stmt->bindParam(':code_product', $user['Processing_value_one'], PDO::PARAM_STR);
     $stmt->bindParam(':Location', $userdate['name_panel'], PDO::PARAM_STR);
     $stmt->execute();
@@ -4246,7 +4262,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         $info_product['Service_time'] = $parts[1];
         $info_product['price_product'] = ($parts[2] * $custompricevalue) + ($parts[1] * $customtimevalueprice);
     } else {
-        $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :location OR Location = '/all') LIMIT 1");
+        $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) LIMIT 1");
         $stmt->bindValue(':code_product', $user['Processing_value_one'], PDO::PARAM_STR);
         $stmt->bindValue(':location', $userdate['name_panel'], PDO::PARAM_STR);
         $stmt->execute();
@@ -4441,9 +4457,10 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         $info_product['Service_time'] = $parts[1];
         $info_product['price_product'] = ($parts[2] * $custompricevalue) + ($parts[1] * $customtimevalueprice);
     } else {
-        $__q8 = $pdo->prepare("SELECT * FROM product WHERE code_product = ? AND (Location = ? or Location = '/all') LIMIT 1");
+        $__q8 = $pdo->prepare("SELECT * FROM product WHERE code_product = ? AND (Location = ? or Location = '/all' OR FIND_IN_SET(?, Location) > 0) LIMIT 1");
         $__q8->bindValue(1, $loc, PDO::PARAM_STR);
         $__q8->bindValue(2, $user['Processing_value'], PDO::PARAM_STR);
+        $__q8->bindValue(3, $user['Processing_value'], PDO::PARAM_STR);
         $__q8->execute();
         $info_product = $__q8->fetch(PDO::FETCH_ASSOC);
     }
@@ -4476,7 +4493,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         $info_product['price_product'] = ($parts[2] * $custompricevalue) + ($parts[1] * $customtimevalueprice);
         $info_product['data_limit_reset'] = "no_reset";
     } else {
-        $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :location OR Location = '/all') LIMIT 1");
+        $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) LIMIT 1");
         $stmt->bindValue(':code_product', $user['Processing_value_one'], PDO::PARAM_STR);
         $stmt->bindValue(':location', $user['Processing_value'], PDO::PARAM_STR);
         $stmt->execute();

@@ -47,7 +47,7 @@ final class PurchaseHandler extends BaseHandler
                 "SELECT * FROM product
                   WHERE code_product = :code
                     AND (FIND_IN_SET(:location, Location) > 0 OR Location = '/all')
-                    AND (FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0 OR agent IN ('all', 'allusers'))
+                    AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)
                   LIMIT 1",
                 [
                     ':code' => $serviceId,

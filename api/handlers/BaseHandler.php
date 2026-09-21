@@ -143,9 +143,18 @@ abstract class BaseHandler
 
     protected function productIsAllowedForAgent(array $product, $agent): bool
     {
-        return function_exists('rx_product_allows_agent')
-            && rx_product_allows_agent($product, $agent);
+        if (function_exists('rx_product_allows_agent')) {
+            return rx_product_allows_agent($product, $agent);
+        }
+        $pAgent = trim((string)($product['agent'] ?? 'f'));
+        if ($pAgent === '' || $pAgent === 'all' || $pAgent === 'allusers') return true;
+        $uAgent = trim((string)($agent ?? 'f'));
+        if ($uAgent === '') $uAgent = 'f';
+        if ($pAgent === $uAgent) return true;
+        $parts = array_map('trim', explode(',', $pAgent));
+        return in_array($uAgent, $parts, true) || in_array('all', $parts, true) || in_array('allusers', $parts, true);
     }
+
 
 
     protected function resolveCountryId(): string
