@@ -60,36 +60,35 @@ if (!empty($keyboardRows)) {
 if ($setting['inlinebtnmain'] == "oninline" && !empty($keyboardRows)) {
     $trace_keyboard = $keyboardRows;
     foreach ($trace_keyboard as $key => $callback_set) {
-        foreach ($callback_set as $keyboard_key => $keyboard) {
-            if ($keyboard['text'] == "text_sell") {
-                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "buy";
+        if (!is_array($callback_set)) continue;
+        foreach ($callback_set as $keyboard_key => $btn) {
+            $btnText = is_array($btn) ? (string)($btn['text'] ?? '') : (string)$btn;
+            $cb = null;
+            if ($btnText === "text_sell" || mb_stripos($btnText, 'خرید') !== false || mb_stripos($btnText, 'sell') !== false || mb_stripos($btnText, 'buy') !== false) {
+                $cb = "buy";
+            } elseif ($btnText === "accountwallet" || mb_stripos($btnText, 'کیف پول') !== false || mb_stripos($btnText, 'حساب') !== false || mb_stripos($btnText, 'شارژ') !== false) {
+                $cb = "account";
+            } elseif ($btnText === "text_Tariff_list" || mb_stripos($btnText, 'تعرفه') !== false) {
+                $cb = "Tariff_list";
+            } elseif ($btnText === "text_wheel_luck" || mb_stripos($btnText, 'گردونه') !== false) {
+                $cb = "wheel_luck";
+            } elseif ($btnText === "text_affiliates" || mb_stripos($btnText, 'زیرمجموعه') !== false) {
+                $cb = "affiliatesbtn";
+            } elseif ($btnText === "text_extend" || mb_stripos($btnText, 'تمدید') !== false) {
+                $cb = "extendbtn";
+            } elseif ($btnText === "text_support" || mb_stripos($btnText, 'پشتیبانی') !== false) {
+                $cb = "supportbtns";
+            } elseif ($btnText === "text_Purchased_services" || mb_stripos($btnText, 'سرویس') !== false) {
+                $cb = "backorder";
+            } elseif ($btnText === "text_help" || mb_stripos($btnText, 'راهنما') !== false || mb_stripos($btnText, 'آموزش') !== false) {
+                $cb = "helpbtns";
+            } elseif ($btnText === "text_usertest" || mb_stripos($btnText, 'تست') !== false) {
+                $cb = "usertestbtn";
             }
-            if ($keyboard['text'] == "accountwallet") {
-                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "account";
-            }
-            if ($keyboard['text'] == "text_Tariff_list") {
-                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "Tariff_list";
-            }
-            if ($keyboard['text'] == "text_wheel_luck") {
-                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "wheel_luck";
-            }
-            if ($keyboard['text'] == "text_affiliates") {
-                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "affiliatesbtn";
-            }
-            if ($keyboard['text'] == "text_extend") {
-                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "extendbtn";
-            }
-            if ($keyboard['text'] == "text_support") {
-                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "supportbtns";
-            }
-            if ($keyboard['text'] == "text_Purchased_services") {
-                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "backorder";
-            }
-            if ($keyboard['text'] == "text_help") {
-                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "helpbtns";
-            }
-            if ($keyboard['text'] == "text_usertest") {
-                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "usertestbtn";
+            if ($cb !== null) {
+                $trace_keyboard[$key][$keyboard_key]['callback_data'] = $cb;
+            } elseif (!isset($trace_keyboard[$key][$keyboard_key]['callback_data']) && !isset($trace_keyboard[$key][$keyboard_key]['url']) && !isset($trace_keyboard[$key][$keyboard_key]['web_app'])) {
+                $trace_keyboard[$key][$keyboard_key]['callback_data'] = "btn_" . md5($btnText);
             }
         }
     }
@@ -105,13 +104,12 @@ if ($setting['inlinebtnmain'] == "oninline" && !empty($keyboardRows)) {
     if (!empty($domainhosts) && strpos($domainhosts, '{') === false) {
         $temp_addtional_key[] = ['text' => '🌐 مینی‌اپ Zorvex', 'web_app' => ['url' => "https://{$domainhosts}/app/"]];
     }
-    $keyboard = ['inline_keyboard' => []];
+    $keyboardcustom = applyKeyboardLabels($trace_keyboard, $replacements);
     if (!empty($temp_addtional_key)) {
         $keyboardcustom[] = $temp_addtional_key;
     }
     $keyboardcustom = array_values(array_filter($keyboardcustom, fn($row) => !empty($row)));
-    $keyboard['inline_keyboard'] = $keyboardcustom;
-    $keyboard = json_encode($keyboard);
+    $keyboard = json_encode(['inline_keyboard' => $keyboardcustom]);
 } else {
     if ($admin_idss != 0) {
         $temp_addtional_key[] = ['text' => $textbotlang['Admin']['panelAdmin']];

@@ -10,6 +10,29 @@ if (!function_exists('faoxima_is_in_json_list')) {
     }
 }
 
+if (!function_exists('is_buy_command')) {
+    function is_buy_command(?string $text, ?string $datain, array $textbotlang = []): bool {
+        if (in_array($datain, ['buy', 'buybacktow', 'buyback'], true)) {
+            return true;
+        }
+        $t = trim((string)$text);
+        if ($t === '') {
+            return false;
+        }
+        if (in_array($t, ['/buy', 'buy', '!buy', 'خرید', 'خرید اشتراک', 'خرید سرویس', '🛍 خرید اشتراک', '🔐 خرید اشتراک', '🛒 خرید اشتراک', 'خرید اشتراک 🛍', 'سفارش اشتراک', 'خرید سرویس جدید'], true)) {
+            return true;
+        }
+        $configuredSell = trim((string)($textbotlang['textbot']['sell'] ?? ''));
+        if ($configuredSell !== '' && ($t === $configuredSell || mb_stripos($t, $configuredSell) !== false)) {
+            return true;
+        }
+        if (preg_match('/(خرید|سفارش)\s*(اشتراک|سرویس|کانفیگ)/u', $t)) {
+            return true;
+        }
+        return false;
+    }
+}
+
 $botinfo = select("botsaz", "*", "bot_token", $ApiToken, "select");
 $userbot = select("user", "*", "id", $botinfo['id_user'], "select");
 $hide_panel = !empty($botinfo['hide_panel']) ? json_decode($botinfo['hide_panel'], true) : [];
@@ -62,8 +85,9 @@ $backuser = json_encode([
 
 // keyboard list panel for test 
 
-$stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE TestAccount = 'ONTestAccount' AND (agent = :mp1 OR agent = 'all')");
-$stmt->execute([':mp1' => $userbot['agent']]);
+$userbotAgent = !empty($userbot['agent']) ? $userbot['agent'] : 'f';
+$stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE TestAccount = 'ONTestAccount' AND (agent = :mp1 OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:mp1, agent) > 0)");
+$stmt->execute([':mp1' => $userbotAgent]);
 $list_marzban_panel_usertest = ['inline_keyboard' => []];
 while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
     if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null)) continue;
@@ -160,8 +184,9 @@ $backadmin = json_encode([
 ]);
 
 //------------------  [ listpanelusers ]----------------//
-$stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (agent = :mp2 OR agent = 'all')");
-$stmt->execute([':mp2' => $userbot['agent']]);
+$userbotAgent = !empty($userbot['agent']) ? $userbot['agent'] : 'f';
+$stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (agent = :mp2 OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:mp2, agent) > 0)");
+$stmt->execute([':mp2' => $userbotAgent]);
 $list_marzban_panel_users = ['inline_keyboard' => []];
 while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
     if (faoxima_is_in_json_list($from_id, $result['hide_user'] ?? null)) continue;

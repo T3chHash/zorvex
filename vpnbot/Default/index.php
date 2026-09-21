@@ -585,13 +585,17 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
         ], $APIKEY);
     }
 }
-if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note']) {
+$buyLabel = $text_bot_var['btn_keyboard']['buy'] ?? '';
+$isBuyCmd = is_buy_command($text, $datain ?? null, ['textbot' => ['sell' => $buyLabel]]);
+if ($isBuyCmd && !empty($setting['active_step_note']) && $user['step'] != "statusnamecustom") {
     sendmessage($from_id, $textbotlang['users']['sell']['notestep'], $backuser, 'HTML');
     step("statusnamecustom", $from_id);
     return;
-} elseif ($text == $text_bot_var['btn_keyboard']['buy'] || $user['step'] == "statusnamecustom") {
-    $locationproduct = $pdo->prepare("SELECT * FROM marzban_panel  WHERE status = 'active' AND (agent = ? OR agent = 'all')");
-    $locationproduct->bindValue(1, $userbot['agent'], PDO::PARAM_STR);
+} elseif ($isBuyCmd || $user['step'] == "statusnamecustom") {
+    $userbotAgent = !empty($userbot['agent']) ? $userbot['agent'] : 'f';
+    $locationproduct = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (agent = ? OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(?, agent) > 0)");
+    $locationproduct->bindValue(1, $userbotAgent, PDO::PARAM_STR);
+    $locationproduct->bindValue(2, $userbotAgent, PDO::PARAM_STR);
     $locationproduct->execute();
     if (($locationproduct)->rowCount() == 0) {
         sendmessage($from_id, $textbotlang['users']['sell']['nullPanel'], null, 'HTML');
@@ -600,16 +604,13 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
     if (($locationproduct)->rowCount() == 1) {
         $location = ($locationproduct)->fetch(PDO::FETCH_ASSOC)['name_panel'];
         $locationproduct = select("marzban_panel", "*", "name_panel", $location, "select");
-        $query = "SELECT * FROM product WHERE (Location = '{$locationproduct['name_panel']}' OR Location = '/all' OR FIND_IN_SET('{$locationproduct['name_panel']}', Location) > 0) AND (agent = '{$userbot['agent']}' OR agent IN ('all', 'allusers') OR FIND_IN_SET('{$userbot['agent']}', agent) > 0)";
+        $query = "SELECT * FROM product WHERE (Location = '{$locationproduct['name_panel']}' OR Location = '/all' OR FIND_IN_SET('{$locationproduct['name_panel']}', Location) > 0) AND (agent = '{$userbot['agent']}' OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET('{$userbot['agent']}', agent) > 0)";
         $stmt = $pdo->prepare($query);
         $stmt->execute();
         $productnotexits = $stmt->rowCount();
-        if ($locationproduct['hide_user'] != null) {
-            $list_user = json_decode($locationproduct['hide_user'], true);
-            if (in_array($from_id, $list_user)) {
-                sendmessage($from_id, $textbotlang['users']['sell']['nullPanel'], null, 'HTML');
-                return;
-            }
+        if (faoxima_is_in_json_list($from_id, $locationproduct['hide_user'] ?? null)) {
+            sendmessage($from_id, $textbotlang['users']['sell']['nullPanel'], null, 'HTML');
+            return;
         }
         $stmt = $pdo->prepare("SELECT * FROM invoice WHERE status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold'");
         $stmt->execute();
@@ -630,13 +631,14 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
         $marzban_list_get = $locationproduct;
         if ($productnotexits != 0 and $setting['show_product'] == false) {
             if ($settingmain['statuscategorygenral'] == "offcategorys") {
-                $statuscustomvolume = json_decode($locationproduct['customvolume'], true)[$userbot['agent']];
-                if ($statuscustomvolume == "1" && $locationproduct['type'] != "Manualsale") {
+                $cvDecoded = !empty($locationproduct['customvolume']) ? json_decode($locationproduct['customvolume'], true) : [];
+                $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$userbot['agent']] ?? null) : null;
+                if ($statuscustomvolume == "1" && ($locationproduct['type'] ?? '') != "Manualsale") {
                     $statuscustom = true;
                 } else {
                     $statuscustom = false;
                 }
-                if (in_array(usernameMethodKey($marzban_list_get['MethodUsername']), ['customUsername', 'customUsernameRandom'], true)) {
+                if (in_array(usernameMethodKey($marzban_list_get['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
                     $keyboarddata = "selectproductbuyy_";
                 } else {
                     $keyboarddata = "selectproductbuy_";
@@ -655,11 +657,11 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
             }
         } else {
             $marzban_list_get = $locationproduct;
-            $eextraprice = $setting['pricevolume'];
-            $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-            $mainvolume = $mainvolume[$userbot['agent']];
-            $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-            $maxvolume = $maxvolume[$userbot['agent']];
+            $eextraprice = $setting['pricevolume'] ?? 0;
+            $mainvolumeArr = !empty($marzban_list_get['mainvolume']) ? json_decode($marzban_list_get['mainvolume'], true) : [];
+            $mainvolume = is_array($mainvolumeArr) ? ($mainvolumeArr[$userbot['agent']] ?? '1') : '1';
+            $maxvolumeArr = !empty($marzban_list_get['maxvolume']) ? json_decode($marzban_list_get['maxvolume'], true) : [];
+            $maxvolume = is_array($maxvolumeArr) ? ($maxvolumeArr[$userbot['agent']] ?? '100') : '100';
             $textcustom = "📌 حجم درخواستی خود را ارسال کنید.
         🔔قیمت هر گیگ حجم $eextraprice تومان می باشد.
         🔔 حداقل حجم $mainvolume گیگابایت و حداکثر $maxvolume گیگابایت می باشد.";
@@ -674,21 +676,21 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
     }
     sendmessage($from_id, "📌 موقعیت سرویس خود را انتخاب کنید", $list_marzban_panel_user, 'HTML');
 } elseif ($datain == "customvolumebuy") {
-    $userdate = json_decode($user['Processing_value'], true);
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $eextraprice = $setting['pricevolume'];
-    $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-    $mainvolume = $mainvolume[$userbot['agent']];
-    $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-    $maxvolume = $maxvolume[$userbot['agent']];
+    $userdate = json_decode($user['Processing_value'] ?? '', true);
+    $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'] ?? '', "select");
+    $eextraprice = $setting['pricevolume'] ?? 0;
+    $mainvolumeArr = !empty($marzban_list_get['mainvolume']) ? json_decode($marzban_list_get['mainvolume'], true) : [];
+    $mainvolume = is_array($mainvolumeArr) ? ($mainvolumeArr[$userbot['agent']] ?? '1') : '1';
+    $maxvolumeArr = !empty($marzban_list_get['maxvolume']) ? json_decode($marzban_list_get['maxvolume'], true) : [];
+    $maxvolume = is_array($maxvolumeArr) ? ($maxvolumeArr[$userbot['agent']] ?? '100') : '100';
     $textcustom = "📌 حجم درخواستی خود را ارسال کنید.
 🔔قیمت هر گیگ حجم $eextraprice تومان می باشد.
 🔔 حداقل حجم $mainvolume گیگابایت و حداکثر $maxvolume گیگابایت می باشد.";
     sendmessage($from_id, $textcustom, $backuser, 'html');
     step('gettimecustomvol', $from_id);
 } elseif (preg_match('/^location_(.*)/', $datain, $dataget)) {
-    $userdate = json_decode($user['Processing_value'], true);
-    $locationproduct = select("marzban_panel", "*", "code_panel", $dataget[1], "select");
+    $userdate = json_decode($user['Processing_value'] ?? '', true);
+    $locationproduct = select("marzban_panel", "*", "code_panel", $dataget[1] ?? '', "select");
     if (isset($userdate['note'])) {
         savedata("save", "name_panel", $locationproduct['name_panel']);
     } else {
@@ -703,19 +705,20 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
             return;
         }
     }
-    $query = "SELECT * FROM product WHERE (Location = '{$locationproduct['name_panel']}' OR Location = '/all' OR FIND_IN_SET('{$locationproduct['name_panel']}', Location) > 0) AND (agent = '{$userbot['agent']}' OR agent IN ('all', 'allusers') OR FIND_IN_SET('{$userbot['agent']}', agent) > 0)";
+    $query = "SELECT * FROM product WHERE (Location = '{$locationproduct['name_panel']}' OR Location = '/all' OR FIND_IN_SET('{$locationproduct['name_panel']}', Location) > 0) AND (agent = '{$userbot['agent']}' OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET('{$userbot['agent']}', agent) > 0)";
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     $productnotexits = $stmt->rowCount();
     if ($productnotexits != 0 and $setting['show_product'] == false) {
         if ($settingmain['statuscategorygenral'] == "offcategorys") {
-            $statuscustomvolume = json_decode($locationproduct['customvolume'], true)[$userbot['agent']];
-            if ($statuscustomvolume == "1" && $locationproduct['type'] != "Manualsale") {
+            $cvDecoded = !empty($locationproduct['customvolume']) ? json_decode($locationproduct['customvolume'], true) : [];
+            $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$userbot['agent']] ?? null) : null;
+            if ($statuscustomvolume == "1" && ($locationproduct['type'] ?? '') != "Manualsale") {
                 $statuscustom = true;
             } else {
                 $statuscustom = false;
             }
-            if (in_array(usernameMethodKey($locationproduct['MethodUsername']), ['customUsername', 'customUsernameRandom'], true)) {
+            if (in_array(usernameMethodKey($locationproduct['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
                 $keyboarddata = "selectproductbuyy_";
             } else {
                 $keyboarddata = "selectproductbuy_";

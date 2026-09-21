@@ -3387,7 +3387,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     }
     step('home', $from_id);
     return;
-} elseif (($text == $textbotlang['textbot']['sell'] || $datain == "buy" || $datain == "buyback" || $text == "/buy" || $text == "buy") && $statusnote) {
+} elseif (is_buy_command($text, $datain, $textbotlang) && $statusnote && $user['step'] != "statusnamecustom") {
     if ($setting['get_number'] == "onAuthenticationphone" && $user['step'] != "get_number" && $user['number'] == "none") {
         sendmessage($from_id, $textbotlang['users']['number']['confirming'], $request_contact, 'HTML');
         step('get_number', $from_id);
@@ -3623,25 +3623,26 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     $categorynames = select("category", "remark", "id", $categorynames, "select")['remark'];
     $userdate = json_decode($user['Processing_value'], true);
     if (isset($userdate['monthproduct'])) {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers') OR FIND_IN_SET(:agent, agent) > 0) AND (category = :category OR FIND_IN_SET(:category, category) > 0) AND Service_time = :stime";
+        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0) AND (category = :category OR FIND_IN_SET(:category, category) > 0) AND Service_time = :stime";
         $queryParams = [':loc' => $userdate['name_panel'], ':agent' => $user['agent'], ':category' => $categorynames, ':stime' => $userdate['monthproduct']];
     } else {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers') OR FIND_IN_SET(:agent, agent) > 0) AND (category = :category OR FIND_IN_SET(:category, category) > 0)";
+        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0) AND (category = :category OR FIND_IN_SET(:category, category) > 0)";
         $queryParams = [':loc' => $userdate['name_panel'], ':agent' => $user['agent'], ':category' => $categorynames];
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
-    if (in_array(usernameMethodKey($marzban_list_get['MethodUsername']), ['customUsername', 'customUsernameRandom'], true)) {
+    $cvDecoded = !empty($marzban_list_get['customvolume']) ? json_decode($marzban_list_get['customvolume'], true) : [];
+    $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$user['agent']] ?? null) : null;
+    if (in_array(usernameMethodKey($marzban_list_get['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
         $datakeyboard = "prodcutservices_";
     } else {
         $datakeyboard = "prodcutservice_";
     }
-    if ($statuscustomvolume == "1" && $marzban_list_get['type'] != "Manualsale") {
+    if ($statuscustomvolume == "1" && ($marzban_list_get['type'] ?? '') != "Manualsale") {
         $statuscustom = true;
     } else {
         $statuscustom = false;
     }
-    Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelectFirst'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $queryParams));
+    Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelectFirst'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'] ?? 0, $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $queryParams));
 } elseif (preg_match('/^productmonth_(\w+)/', $datain, $dataget)) {
     $monthenumber = $dataget[1];
     $userdate = json_decode($user['Processing_value'], true);
@@ -3659,7 +3660,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     if ($setting['statuscategorygenral'] == "oncategorys") {
         savedata("save", "monthproduct", $monthenumber);
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-        $stmt = $pdo->prepare("SELECT * FROM marzban_panel  WHERE status = 'active' AND (agent = :mp3 OR agent = 'all')");
+        $stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (agent = :mp3 OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:mp3, agent) > 0)");
         $stmt->execute([':mp3' => $user['agent']]);
         $count_panel = $stmt->rowCount();
         if ($count_panel == 1) {
@@ -3669,7 +3670,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         }
         Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($marzban_list_get['name_panel'], $user['agent'], $back));
     } else {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers') OR FIND_IN_SET(:agent, agent) > 0) AND Service_time = :stime";
+        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0) AND Service_time = :stime";
         $queryParams = [':loc' => $userdate['name_panel'], ':agent' => $user['agent'], ':stime' => $monthenumber];
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
         $statuscustomvolume = json_decode($marzban_list_get['customvolume'] ?? '[]', true)[$user['agent']] ?? null;
@@ -3686,29 +3687,29 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelectFirst'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $queryParams));
     }
 } elseif ($datain == "customsellvolume") {
-    $userdate = json_decode($user['Processing_value'], true);
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-    $mainvolume = $mainvolume[$user['agent']];
-    $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-    $maxvolume = $maxvolume[$user['agent']];
+    $userdate = json_decode($user['Processing_value'] ?? '', true);
+    $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'] ?? '', "select");
+    $eextraprice = !empty($marzban_list_get['pricecustomvolume']) ? json_decode($marzban_list_get['pricecustomvolume'], true) : [];
+    $custompricevalue = is_array($eextraprice) ? ($eextraprice[$user['agent']] ?? 0) : 0;
+    $mainvolumeArr = !empty($marzban_list_get['mainvolume']) ? json_decode($marzban_list_get['mainvolume'], true) : [];
+    $mainvolume = is_array($mainvolumeArr) ? ($mainvolumeArr[$user['agent']] ?? 0) : 0;
+    $maxvolumeArr = !empty($marzban_list_get['maxvolume']) ? json_decode($marzban_list_get['maxvolume'], true) : [];
+    $maxvolume = is_array($maxvolumeArr) ? ($maxvolumeArr[$user['agent']] ?? 0) : 0;
     $textcustom = sprintf($textbotlang['users']['sell']['customVolumePrompt5'], $custompricevalue, $mainvolume, $maxvolume);
     sendmessage($from_id, $textcustom, $backuser, 'html');
     deletemessage($from_id, $message_id);
     step('gettimecustomvol', $from_id);
 } elseif ($user['step'] == "gettimecustomvol") {
-    $userdate = json_decode($user['Processing_value'], true);
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-    $mainvolume = $mainvolume[$user['agent']];
-    $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-    $maxvolume = $maxvolume[$user['agent']];
-    $maintime = json_decode($marzban_list_get['maintime'], true);
-    $maintime = $maintime[$user['agent']];
-    $maxtime = json_decode($marzban_list_get['maxtime'], true);
-    $maxtime = $maxtime[$user['agent']];
+    $userdate = json_decode($user['Processing_value'] ?? '', true);
+    $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'] ?? '', "select");
+    $mainvolumeArr = !empty($marzban_list_get['mainvolume']) ? json_decode($marzban_list_get['mainvolume'], true) : [];
+    $mainvolume = is_array($mainvolumeArr) ? ($mainvolumeArr[$user['agent']] ?? 0) : 0;
+    $maxvolumeArr = !empty($marzban_list_get['maxvolume']) ? json_decode($marzban_list_get['maxvolume'], true) : [];
+    $maxvolume = is_array($maxvolumeArr) ? ($maxvolumeArr[$user['agent']] ?? 0) : 0;
+    $maintimeArr = !empty($marzban_list_get['maintime']) ? json_decode($marzban_list_get['maintime'], true) : [];
+    $maintime = is_array($maintimeArr) ? ($maintimeArr[$user['agent']] ?? 0) : 0;
+    $maxtimeArr = !empty($marzban_list_get['maxtime']) ? json_decode($marzban_list_get['maxtime'], true) : [];
+    $maxtime = is_array($maxtimeArr) ? ($maxtimeArr[$user['agent']] ?? 0) : 0;
     if ($text > intval($maxvolume) || $text < intval($mainvolume)) {
         $texttime = strtr($textbotlang['users']['customSellVolume']['invalidVolume'], ['{mainvolume}' => $mainvolume, '{maxvolume}' => $maxvolume]);
         sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -3718,30 +3719,30 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         sendmessage($from_id, $textbotlang['common']['invalidVolume'], $backuser, 'HTML');
         return;
     }
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'] ?? '', "select");
+    $eextraprice = !empty($marzban_list_get['pricecustomtime']) ? json_decode($marzban_list_get['pricecustomtime'], true) : [];
+    $customtimevalueprice = is_array($eextraprice) ? ($eextraprice[$user['agent']] ?? 0) : 0;
     update("user", "Processing_value_one", $text, "id", $from_id);
     $textcustom = sprintf($textbotlang['users']['sell']['customTimePrompt2'], $customtimevalueprice, $maintime, $maxtime);
     sendmessage($from_id, $textcustom, $backuser, 'html');
-    if (in_array(usernameMethodKey($marzban_list_get['MethodUsername']), ['customUsername', 'customUsernameRandom'], true)) {
+    if (in_array(usernameMethodKey($marzban_list_get['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
         step('getvolumecustomusername', $from_id);
     } else {
         step('getvolumecustomuser', $from_id);
     }
 } elseif ($user['step'] == "getvolumecustomusername" || preg_match('/^prodcutservices_(.*)/', $datain, $dataget)) {
-    $prodcut = $dataget[1];
-    $userdate = json_decode($user['Processing_value'], true);
+    $prodcut = $dataget[1] ?? '';
+    $userdate = json_decode($user['Processing_value'] ?? '', true);
     if ($user['step'] == "getvolumecustomusername") {
         if (!ctype_digit($text)) {
             sendmessage($from_id, $textbotlang['common']['invalidTime'], $backuser, 'HTML');
             return;
         }
-        $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-        $maintime = json_decode($marzban_list_get['maintime'], true);
-        $maintime = $maintime[$user['agent']];
-        $maxtime = json_decode($marzban_list_get['maxtime'], true);
-        $maxtime = $maxtime[$user['agent']];
+        $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'] ?? '', "select");
+        $maintimeArr = !empty($marzban_list_get['maintime']) ? json_decode($marzban_list_get['maintime'], true) : [];
+        $maintime = is_array($maintimeArr) ? ($maintimeArr[$user['agent']] ?? 0) : 0;
+        $maxtimeArr = !empty($marzban_list_get['maxtime']) ? json_decode($marzban_list_get['maxtime'], true) : [];
+        $maxtime = is_array($maxtimeArr) ? ($maxtimeArr[$user['agent']] ?? 0) : 0;
         if (intval($text) > intval($maxtime) || intval($text) < intval($maintime)) {
             $texttime = strtr($textbotlang['users']['customSellVolume']['invalidTimeRange'], ['{maintime}' => $maintime, '{maxtime}' => $maxtime]);
             sendmessage($from_id, $texttime, $backuser, 'HTML');

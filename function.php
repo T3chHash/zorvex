@@ -2386,17 +2386,62 @@ function sanitize_recursive(array $data): array
 
 function check_active_btn($keyboard, $text_var)
 {
-    $trace_keyboard = json_decode($keyboard, true)['keyboard'];
-    $status = false;
-    foreach ($trace_keyboard as $key => $callback_set) {
-        foreach ($callback_set as $keyboard_key => $keyboard) {
-            if ($keyboard['text'] == $text_var) {
-                $status = true;
-                break;
+    global $textbotlang;
+    if (empty($keyboard)) {
+        return true;
+    }
+    $decoded = is_array($keyboard) ? $keyboard : json_decode((string)$keyboard, true);
+    if (!is_array($decoded)) {
+        return true;
+    }
+    $rows = $decoded['keyboard'] ?? (isset($decoded[0]) && is_array($decoded[0]) ? $decoded : null);
+    if (!is_array($rows) || empty($rows)) {
+        return true;
+    }
+
+    $aliases = [
+        'text_sell' => ['text_sell', 'خرید', 'اشتراک', 'سفارش', 'sell', 'buy', '🛍', '🛒', '🔐'],
+        'text_extend' => ['text_extend', 'تمدید', 'extend', '🔄'],
+        'text_usertest' => ['text_usertest', 'تست', 'test', 'usertest', '🎁'],
+        'text_wheel_luck' => ['text_wheel_luck', 'گردونه', 'wheel', 'luck', '🎡'],
+        'text_Purchased_services' => ['text_Purchased_services', 'سرویس', 'سرویس‌های من', 'services', '📋'],
+        'accountwallet' => ['accountwallet', 'کیف پول', 'حساب', 'شارژ', 'wallet', '💳'],
+        'text_Add_Balance' => ['text_Add_Balance', 'افزایش موجودی', 'balance', '➕'],
+        'text_affiliates' => ['text_affiliates', 'زیرمجموعه', 'همکاری', 'affiliate', 'affiliates', '👥'],
+        'text_Tariff_list' => ['text_Tariff_list', 'تعرفه', 'تعرفه‌ها', 'tariff', '📊'],
+        'text_support' => ['text_support', 'پشتیبانی', 'ارتباط', 'support', '☎️', '📞'],
+        'text_help' => ['text_help', 'راهنما', 'آموزش', 'help', '📚'],
+        'text_fq' => ['text_fq', 'سوالات', 'faq', '❓'],
+    ];
+
+    $targets = $aliases[$text_var] ?? [$text_var];
+    if (isset($textbotlang['textbot']) && is_array($textbotlang['textbot'])) {
+        foreach (['sell' => 'text_sell', 'userTest' => 'text_usertest', 'support' => 'text_support', 'help' => 'text_help', 'affiliates' => 'text_affiliates', 'wheelLuck' => 'text_wheel_luck', 'extend' => 'text_extend', 'accountWallet' => 'accountwallet', 'tariffList' => 'text_Tariff_list'] as $langKey => $mappedBtn) {
+            if ($text_var === $mappedBtn && !empty($textbotlang['textbot'][$langKey])) {
+                $targets[] = trim((string)$textbotlang['textbot'][$langKey]);
             }
         }
     }
-    return $status;
+
+    foreach ($rows as $callback_set) {
+        if (!is_array($callback_set)) continue;
+        foreach ($callback_set as $btn) {
+            $btnText = is_array($btn) ? (string)($btn['text'] ?? '') : (string)$btn;
+            $btnText = trim($btnText);
+            if ($btnText === '') continue;
+            if ($btnText === $text_var) {
+                return true;
+            }
+            foreach ($targets as $target) {
+                $target = trim((string)$target);
+                if ($target === '') continue;
+                if ($btnText === $target || mb_stripos($btnText, $target) !== false) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 function deleteFolder($folderPath)
 {
