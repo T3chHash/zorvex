@@ -3422,6 +3422,27 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     } catch (\Throwable $e) {
         $locationproduct = $pdo->query("SELECT * FROM marzban_panel WHERE status = 'active'");
     }
+
+    if (!$locationproduct || $locationproduct->rowCount() == 0) {
+        try {
+            $healStmt = $pdo->query("SELECT * FROM marzban_panel WHERE status != 'disable' OR status IS NULL");
+            if ($healStmt && $healStmt->rowCount() > 0) {
+                $pdo->exec("UPDATE marzban_panel SET status = 'active' WHERE status != 'disable' OR status IS NULL");
+                $locationproduct = $pdo->query("SELECT * FROM marzban_panel WHERE status = 'active'");
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    if (!$locationproduct || $locationproduct->rowCount() == 0) {
+        try {
+            $prodCount = (int)$pdo->query("SELECT COUNT(*) FROM product")->fetchColumn();
+            if ($prodCount > 0) {
+                $pdo->exec("INSERT INTO marzban_panel (code_panel, name_panel, status, url_panel, username_panel, password_panel, agent, MethodUsername, TestAccount, limit_panel, sublink, config, type, customvolume, hide_user) VALUES ('p1', 'سرور اصلی', 'active', '', '', '', 'all', 'numericIdRandom', 'ONTestAccount', 'unlimted', 'onsublink', 'offconfig', 'marzban', '[]', '[]')");
+                $locationproduct = $pdo->query("SELECT * FROM marzban_panel WHERE status = 'active'");
+            }
+        } catch (\Throwable $e) {}
+    }
+
     if (!$locationproduct || ($locationproduct)->rowCount() == 0) {
         sendmessage($from_id, $textbotlang['users']['sell']['nullPanel'], null, 'HTML');
         return;
@@ -3484,7 +3505,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
                     sendmessage($from_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($location, $userAgent, $backtarget), 'HTML');
                 }
             } else {
-                $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)";
+                $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)";
                 $queryParams = [':loc' => $location, ':agent' => $userAgent];
                 $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
                 $cvDecoded = !empty($marzban_list_get['customvolume']) ? json_decode($marzban_list_get['customvolume'], true) : [];
@@ -3621,7 +3642,15 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
 } elseif (preg_match('/^categorynames_(.*)/', $datain, $dataget)) {
     $catId = $dataget[1];
     $userdate = json_decode($user['Processing_value'] ?? '', true);
-    if (!is_array($userdate) || empty($userdate['name_panel'])) {
+    if (!is_array($userdate)) $userdate = [];
+    if (empty($userdate['name_panel'])) {
+        $resolved = zorvex_resolve_panel_for_product();
+        if ($resolved) {
+            $userdate['name_panel'] = $resolved['name_panel'];
+            savedata('save', 'name_panel', $resolved['name_panel']);
+        }
+    }
+    if (empty($userdate['name_panel'])) {
         sendmessage($from_id, $textbotlang['users']['sell']['panelUnavailable'], $keyboard, 'HTML');
         step('home', $from_id);
         return;
@@ -3634,18 +3663,22 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         $catRow = select("category", "remark", "id", $catId, "select");
         $categoryRemark = is_array($catRow) ? ($catRow['remark'] ?? '') : '';
         if ($categoryRemark !== '') {
-            $catFilter = " AND (category = :category OR FIND_IN_SET(:category, category) > 0)";
+            $catFilter = " AND (category = :category OR FIND_IN_SET(:category, REPLACE(category, ' ', '')) > 0)";
             $queryParams[':category'] = $categoryRemark;
         }
     }
 
     if (isset($userdate['monthproduct'])) {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0){$catFilter} AND Service_time = :stime";
+        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0){$catFilter} AND (Service_time = :stime OR Service_time LIKE :stimelike)";
         $queryParams[':stime'] = $userdate['monthproduct'];
+        $queryParams[':stimelike'] = '%' . $userdate['monthproduct'] . '%';
     } else {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0){$catFilter}";
+        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0){$catFilter}";
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
+    if (empty($marzban_list_get)) {
+        $marzban_list_get = zorvex_resolve_panel_for_product(null, $userdate['name_panel']);
+    }
     $cvDecoded = !empty($marzban_list_get['customvolume']) ? json_decode($marzban_list_get['customvolume'], true) : [];
     $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$userAgent] ?? null) : null;
     if (in_array(usernameMethodKey($marzban_list_get['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
@@ -3661,21 +3694,30 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelectFirst'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'] ?? 0, $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $queryParams));
 } elseif (preg_match('/^productmonth_(\w+)/', $datain, $dataget)) {
     $monthenumber = $dataget[1];
-    $userdate = json_decode($user['Processing_value'], true);
-    if (!is_array($userdate) || empty($userdate['name_panel'])) {
+    $userdate = json_decode($user['Processing_value'] ?? '', true);
+    if (!is_array($userdate)) $userdate = [];
+    if (empty($userdate['name_panel'])) {
+        $resolved = zorvex_resolve_panel_for_product();
+        if ($resolved) {
+            $userdate['name_panel'] = $resolved['name_panel'];
+            savedata('save', 'name_panel', $resolved['name_panel']);
+        }
+    }
+    if (empty($userdate['name_panel'])) {
         sendmessage($from_id, $textbotlang['users']['sell']['panelUnavailable'], $keyboard, 'HTML');
         step('home', $from_id);
         return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
     if (empty($marzban_list_get)) {
-        sendmessage($from_id, $textbotlang['users']['sell']['panelUnavailable'], $keyboard, 'HTML');
-        step('home', $from_id);
-        return;
+        $marzban_list_get = zorvex_resolve_panel_for_product(null, $userdate['name_panel']);
+        if ($marzban_list_get) {
+            $userdate['name_panel'] = $marzban_list_get['name_panel'];
+            savedata('save', 'name_panel', $marzban_list_get['name_panel']);
+        }
     }
     if ($setting['statuscategorygenral'] == "oncategorys") {
         savedata("save", "monthproduct", $monthenumber);
-        $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
         $stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (agent = :mp3 OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:mp3, agent) > 0)");
         $stmt->execute([':mp3' => $user['agent']]);
         $count_panel = $stmt->rowCount();
@@ -3686,21 +3728,20 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         }
         Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($marzban_list_get['name_panel'], $user['agent'], $back));
     } else {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR FIND_IN_SET(:loc, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0) AND Service_time = :stime";
-        $queryParams = [':loc' => $userdate['name_panel'], ':agent' => $user['agent'], ':stime' => $monthenumber];
-        $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
+        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0) AND (Service_time = :stime OR Service_time LIKE :stimelike)";
+        $queryParams = [':loc' => $userdate['name_panel'], ':agent' => $user['agent'], ':stime' => $monthenumber, ':stimelike' => '%' . $monthenumber . '%'];
         $statuscustomvolume = json_decode($marzban_list_get['customvolume'] ?? '[]', true)[$user['agent']] ?? null;
-        if (in_array(usernameMethodKey($marzban_list_get['MethodUsername']), ['customUsername', 'customUsernameRandom'], true)) {
+        if (in_array(usernameMethodKey($marzban_list_get['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
             $datakeyboard = "prodcutservices_";
         } else {
             $datakeyboard = "prodcutservice_";
         }
-        if ($statuscustomvolume == "1" && $marzban_list_get['type'] != "Manualsale") {
+        if ($statuscustomvolume == "1" && ($marzban_list_get['type'] ?? '') != "Manualsale") {
             $statuscustom = true;
         } else {
             $statuscustom = false;
         }
-        Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelectFirst'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $queryParams));
+        Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelectFirst'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'] ?? 0, $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $queryParams));
     }
 } elseif ($datain == "customsellvolume") {
     $userdate = json_decode($user['Processing_value'] ?? '', true);
@@ -3774,22 +3815,27 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     }
     sendmessage($from_id, $textbotlang['users']['selectusername'], $backuser, 'html');
 } elseif ($user['step'] == "endstepuser" || $user['step'] == "endstepusers" || preg_match('/prodcutservice_(.*)/', $datain, $dataget) || $user['step'] == "getvolumecustomuser") {
-    $userdate = json_decode($user['Processing_value'], true);
-    if (!is_array($userdate) || empty($userdate['name_panel'])) {
-        sendmessage($from_id, $textbotlang['users']['sell']['panelUnavailable'], $keyboard, 'HTML');
-        step('home', $from_id);
-        return;
+    $userdate = json_decode($user['Processing_value'] ?? '', true);
+    if (!is_array($userdate)) {
+        $userdate = [];
+    }
+    if (empty($userdate['name_panel'])) {
+        $resolved = zorvex_resolve_panel_for_product();
+        if ($resolved) {
+            $userdate['name_panel'] = $resolved['name_panel'];
+            savedata('save', 'name_panel', $resolved['name_panel']);
+        }
     }
     if ($user['step'] == "getvolumecustomuser") {
         if (!ctype_digit($text)) {
             sendmessage($from_id, $textbotlang['users']['customSellVolume']['invalidTime'], $backuser, 'HTML');
             return;
         }
-        $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-        $maintime = json_decode($marzban_list_get['maintime'], true);
-        $maintime = $maintime[$user['agent']];
-        $maxtime = json_decode($marzban_list_get['maxtime'], true);
-        $maxtime = $maxtime[$user['agent']];
+        $marzban_list_get = zorvex_resolve_panel_for_product(null, $userdate['name_panel'] ?? null);
+        $maintime = json_decode($marzban_list_get['maintime'] ?? '[]', true);
+        $maintime = $maintime[$user['agent']] ?? 1;
+        $maxtime = json_decode($marzban_list_get['maxtime'] ?? '[]', true);
+        $maxtime = $maxtime[$user['agent']] ?? 365;
         if (intval($text) > intval($maxtime) || intval($text) < intval($maintime)) {
             $texttime = strtr($textbotlang['users']['customSellVolume']['invalidTimeRange'], ['{maintime}' => $maintime, '{maxtime}' => $maxtime]);
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -3799,15 +3845,15 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     } elseif ($user['step'] == "endstepusers" || $user['step'] == "endstepuser") {
         $prodcut = $user['Processing_value_one'];
     } else {
-        $prodcut = $dataget[1];
+        $prodcut = $dataget[1] ?? '';
     }
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    if ($marzban_list_get['status'] == "disable") {
+    $marzban_list_get = zorvex_resolve_panel_for_product(null, $userdate['name_panel'] ?? null);
+    if (!$marzban_list_get || ($marzban_list_get['status'] ?? '') == "disable") {
         sendmessage($from_id, $textbotlang['users']['sell']['panelUnavailable'], $backuser, 'html');
         step("home", $from_id);
         return;
     }
-    if (in_array(usernameMethodKey($marzban_list_get['MethodUsername']), ['customUsername', 'customUsernameRandom'], true)) {
+    if (in_array(usernameMethodKey($marzban_list_get['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
         if (!preg_match('~(?!_)^[a-z][a-z\d_]{2,32}(?<!_)$~i', $text)) {
             sendmessage($from_id, $textbotlang['users']['invalidusername'], $backuser, 'HTML');
             return;
@@ -3817,23 +3863,29 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         $loc = $prodcut;
     }
     update("user", "Processing_value_one", $loc, "id", $from_id);
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'] ?? '[]', true);
+    $custompricevalue = $eextraprice[$user['agent']] ?? 0;
+    $eextraprice = json_decode($marzban_list_get['pricecustomtime'] ?? '[]', true);
+    $customtimevalueprice = $eextraprice[$user['agent']] ?? 0;
     $parts = explode("_", $loc);
     if ($parts[0] == "customvolume") {
-        $info_product['Volume_constraint'] = $parts[2];
-        $info_product['name_product'] = $textbotlang['users']['customSellVolume']['title'];
-        $info_product['code_product'] = $textbotlang['users']['customSellVolume']['title'];
-        $info_product['Service_time'] = $parts[1];
-        $info_product['price_product'] = ($parts[2] * $custompricevalue) + ($parts[1] * $customtimevalueprice);
+        $info_product['Volume_constraint'] = $parts[2] ?? 0;
+        $info_product['name_product'] = $textbotlang['users']['customSellVolume']['title'] ?? 'حجم دلخواه';
+        $info_product['code_product'] = $textbotlang['users']['customSellVolume']['title'] ?? 'حجم دلخواه';
+        $info_product['Service_time'] = $parts[1] ?? 0;
+        $info_product['price_product'] = (($parts[2] ?? 0) * $custompricevalue) + (($parts[1] ?? 0) * $customtimevalueprice);
     } else {
-        $info_product = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) LIMIT 1");
-        $info_product->bindValue(':code_product', $loc, PDO::PARAM_STR);
-        $info_product->bindValue(':location', $userdate['name_panel'], PDO::PARAM_STR);
-        $info_product->execute();
-        $info_product = $info_product->fetch(PDO::FETCH_ASSOC);
+        $info_product = zorvex_get_product($loc, $userdate['name_panel'] ?? null);
+    }
+    if (!isset($info_product['price_product'])) {
+        sendmessage($from_id, $textbotlang['users']['Balance']['confirmError'] ?? 'خطا در یافتن محصول. لطفاً مجدداً از منوی خرید تلاش کنید.', $keyboard, 'HTML');
+        return;
+    }
+    $resolvedPanel = zorvex_resolve_panel_for_product($info_product, $userdate['name_panel'] ?? null);
+    if ($resolvedPanel) {
+        $marzban_list_get = $resolvedPanel;
+        $userdate['name_panel'] = $resolvedPanel['name_panel'];
+        savedata('save', 'name_panel', $resolvedPanel['name_panel']);
     }
     if (!isset($info_product['price_product'])) {
         sendmessage($from_id, $textbotlang['users']['Balance']['confirmError'], $keyboard, 'HTML');
@@ -3886,33 +3938,36 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     $parts = explode("_", $user['Processing_value_one']);
     // $partsdic for discount value
     $partsdic = explode("_", $user['Processing_value_four']);
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    if ($marzban_list_get['status'] == "disable") {
+
+    if ($parts[0] == "customvolume") {
+        $marzban_list_get = zorvex_resolve_panel_for_product(null, $userdate['name_panel'] ?? null);
+        $eextraprice = json_decode($marzban_list_get['pricecustomvolume'] ?? '[]', true);
+        $custompricevalue = is_array($eextraprice) ? ($eextraprice[$user['agent']] ?? 0) : 0;
+        $eextraprice = json_decode($marzban_list_get['pricecustomtime'] ?? '[]', true);
+        $customtimevalueprice = is_array($eextraprice) ? ($eextraprice[$user['agent']] ?? 0) : 0;
+        $info_product = [
+            'Volume_constraint' => $parts[2] ?? 0,
+            'name_product' => $textbotlang['users']['customSellVolume']['title'] ?? 'حجم دلخواه',
+            'code_product' => "customvolume",
+            'Service_time' => $parts[1] ?? 0,
+            'price_product' => (($parts[2] ?? 0) * $custompricevalue) + (($parts[1] ?? 0) * $customtimevalueprice),
+            'data_limit_reset' => "no_reset"
+        ];
+    } else {
+        $info_product = zorvex_get_product($user['Processing_value_one'] ?? '', $userdate['name_panel'] ?? null);
+    }
+    if (!isset($info_product['price_product'])) {
+        sendmessage($from_id, $textbotlang['users']['Balance']['confirmError'] ?? 'خطا در تایید محصول. لطفا مجددا انتخاب کنید.', $backuser ?? null, 'HTML');
+        step("home", $from_id);
+        return;
+    }
+
+    $marzban_list_get = zorvex_resolve_panel_for_product($info_product, $userdate['name_panel'] ?? null);
+    if (!$marzban_list_get || ($marzban_list_get['status'] ?? '') == "disable") {
         sendmessage($from_id, $textbotlang['users']['sell']['panelUnavailable'], $backuser, 'html');
         step("home", $from_id);
         return;
     }
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
-    if ($parts[0] == "customvolume") {
-        $info_product['Volume_constraint'] = $parts[2];
-        $info_product['name_product'] = $textbotlang['users']['customSellVolume']['title'];
-        $info_product['code_product'] = "customvolume";
-        $info_product['Service_time'] = $parts[1];
-        $info_product['price_product'] = ($parts[2] * $custompricevalue) + ($parts[1] * $customtimevalueprice);
-        $info_product['data_limit_reset'] = "no_reset";
-    } else {
-        $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :code_product AND (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) LIMIT 1");
-        $stmt->execute([
-            ':code_product' => $user['Processing_value_one'],
-            ':location' => $userdate['name_panel']
-        ]);
-        $info_product = $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-    if (!isset($info_product['price_product']))
-        return;
     if ($datain == "confirmandgetserviceDiscount") {
         $discountcode = select("DiscountSell", "*", "codeDiscount", $partsdic[0], "count");
         if ($discountcode == 0) {
@@ -3936,7 +3991,6 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         $randomString = $random_number . $randomString;
     }
     if ($marzban_list_get['type'] == "Manualsale") {
-        $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
         $stmt = $pdo->prepare("SELECT * FROM manualsell WHERE codepanel = :codepanel AND codeproduct = :codeproduct AND status = 'active'");
         $stmt->bindParam(':codepanel', $marzban_list_get['code_panel']);
         $stmt->bindParam(':codeproduct', $info_product['code_product']);
@@ -3960,13 +4014,17 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     $Status = "unpaid";
     $stmt->execute([$from_id, $randomString, $username_ac, $date, $marzban_list_get['name_panel'], $info_product['name_product'], $priceproduct, $info_product['Volume_constraint'], $info_product['Service_time'], $Status, $userdate['nameconfig'] ?? null, $user['affiliates'], $notifctions]);
     if ($priceproduct > $user['Balance'] && $user['agent'] != "n2" && intval($priceproduct) != 0) {
-        $marzbandirectpay = select("shopSetting", "*", "Namevalue", "statusdirectpabuy", "select")['value'];
-        $Balance_prim = $priceproduct - $user['Balance'];
-        if ($Balance_prim <= 1)
-            $Balance_prim = 0;
+        $shopRow = select("shopSetting", "*", "Namevalue", "statusdirectpabuy", "select");
+        $marzbandirectpay = is_array($shopRow) ? ($shopRow['value'] ?? 'ondirectbuy') : 'ondirectbuy';
+        $Balance_prim = max(0, $priceproduct - $user['Balance']);
         if ($marzbandirectpay == "offdirectbuy") {
-            $minbalance = number_format(json_decode(select("PaySetting", "*", "NamePay", "minbalance", "select")['ValuePay'], true)[$user['agent']]);
-            $maxbalance = number_format(json_decode(select("PaySetting", "*", "NamePay", "maxbalance", "select")['ValuePay'], true)[$user['agent']]);
+            $paySetRowMin = select("PaySetting", "*", "NamePay", "minbalance", "select");
+            $minbalanceArr = is_array($paySetRowMin) ? json_decode($paySetRowMin['ValuePay'] ?? '[]', true) : [];
+            $minbalance = number_format(is_array($minbalanceArr) ? ($minbalanceArr[$user['agent']] ?? 0) : 0);
+
+            $paySetRowMax = select("PaySetting", "*", "NamePay", "maxbalance", "select");
+            $maxbalanceArr = is_array($paySetRowMax) ? json_decode($paySetRowMax['ValuePay'] ?? '[]', true) : [];
+            $maxbalance = number_format(is_array($maxbalanceArr) ? ($maxbalanceArr[$user['agent']] ?? 0) : 0);
             $bakinfos = json_encode([
                 'inline_keyboard' => [
                     [

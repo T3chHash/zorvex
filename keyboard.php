@@ -1392,18 +1392,40 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
             $cleanPrice = max(0, $cleanPrice - $resultper);
         }
 
-        $tomanUnit = $textbotlang['common']['labels']['toman'] ?? ($textbotlang['common']['labels']['tomanUnit'] ?? ' تومان');
-        $namekeyboard = ($result['name_product'] ?? '') . " - " . number_format($cleanPrice) . " " . trim($tomanUnit);
+        $prodName = trim((string)($result['name_product'] ?? 'سرویس'));
+        $vol = intval($result['Volume_constraint'] ?? 0);
+        $days = intval($result['Service_time'] ?? 0);
+        $volText = ($vol > 0) ? "{$vol}GB" : "نامحدود";
+        $dayText = ($days > 0) ? "{$days} روز" : "دائمی";
+        $priceText = number_format($cleanPrice) . " ت";
+
         if ($statusshowprice === "onshowprice") {
-            $displayName = $namekeyboard;
+            $displayName = "💎 {$prodName} | {$priceText}";
         } else {
-            $displayName = $result['name_product'] ?? '';
+            $displayName = "💎 {$prodName} ({$volText} • {$dayText})";
         }
 
-        $codeProd = $result['code_product'] ?? '';
+        $codeProd = !empty($result['code_product']) ? (string)$result['code_product'] : (string)($result['id'] ?? '');
         $product['inline_keyboard'][] = [
             ['text' => $displayName, 'callback_data' => "{$datakeyboard}{$codeProd}{$valuetow}"]
         ];
+    }
+
+    if (empty($product['inline_keyboard'])) {
+        // Smart fallback: fetch available products so user never gets an empty screen
+        try {
+            $fbStmt = $pdo->query("SELECT * FROM product ORDER BY id DESC LIMIT 25");
+            if ($fbStmt) {
+                while ($fbRow = $fbStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $fbCode = !empty($fbRow['code_product']) ? (string)$fbRow['code_product'] : (string)$fbRow['id'];
+                    $fbPrice = floatval(preg_replace('/[^\d.]/', '', (string)($fbRow['price_product'] ?? '0')) ?: 0);
+                    $fbName = trim((string)($fbRow['name_product'] ?? 'سرویس'));
+                    $product['inline_keyboard'][] = [
+                        ['text' => "💎 {$fbName} | " . number_format($fbPrice) . " ت", 'callback_data' => "{$datakeyboard}{$fbCode}{$valuetow}"]
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {}
     }
 
     if (empty($product['inline_keyboard'])) {

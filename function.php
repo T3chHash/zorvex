@@ -3096,4 +3096,87 @@ if (!function_exists('panel_limit_lock_release')) {
     }
 }
 
+if (!function_exists('zorvex_get_product')) {
+    function zorvex_get_product($codeOrId, $preferredPanel = null) {
+        global $pdo;
+        $target = trim((string)$codeOrId);
+        if ($target === '') return null;
+
+        // 1. If preferredPanel provided, try matching product within that location
+        if (!empty($preferredPanel)) {
+            try {
+                $stmt = $pdo->prepare("SELECT * FROM product WHERE (code_product = :cid OR id = :cid) AND (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0) LIMIT 1");
+                $stmt->execute([':cid' => $target, ':loc' => (string)$preferredPanel]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($row && isset($row['price_product'])) {
+                    return $row;
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        // 2. Direct lookup by code_product or numeric id
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :cid OR id = :cid LIMIT 1");
+            $stmt->execute([':cid' => $target]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row && isset($row['price_product'])) {
+                return $row;
+            }
+        } catch (\Throwable $e) {}
+
+        return null;
+    }
+}
+
+if (!function_exists('zorvex_resolve_panel_for_product')) {
+    function zorvex_resolve_panel_for_product($product = null, $preferredPanel = null) {
+        global $pdo;
+        // 1. Check preferred panel if active
+        if (!empty($preferredPanel)) {
+            try {
+                $stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE name_panel = :np AND status = 'active' LIMIT 1");
+                $stmt->execute([':np' => (string)$preferredPanel]);
+                $panel = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($panel) return $panel;
+            } catch (\Throwable $e) {}
+        }
+
+        // 2. Check product's own Location
+        if (is_array($product) && !empty($product['Location']) && $product['Location'] !== '/all' && $product['Location'] !== 'all') {
+            $locList = explode(',', (string)$product['Location']);
+            foreach ($locList as $locName) {
+                $locName = trim($locName);
+                if ($locName === '' || $locName === '/all' || $locName === 'all') continue;
+                try {
+                    $stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE (name_panel = :np OR code_panel = :np) AND status = 'active' LIMIT 1");
+                    $stmt->execute([':np' => $locName]);
+                    $panel = $stmt->fetch(PDO::FETCH_ASSOC);
+                    if ($panel) return $panel;
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        // 3. Any active panel in marzban_panel
+        try {
+            $stmt = $pdo->query("SELECT * FROM marzban_panel WHERE status = 'active' ORDER BY id ASC LIMIT 1");
+            $panel = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+            if ($panel) return $panel;
+        } catch (\Throwable $e) {}
+
+        // 4. Any panel with status != 'disable' or NULL -> auto-activate
+        try {
+            $stmt = $pdo->query("SELECT * FROM marzban_panel WHERE status != 'disable' OR status IS NULL ORDER BY id ASC LIMIT 1");
+            $panel = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+            if ($panel) {
+                $pdo->prepare("UPDATE marzban_panel SET status = 'active' WHERE id = :id")->execute([':id' => $panel['id']]);
+                $panel['status'] = 'active';
+                return $panel;
+            }
+        } catch (\Throwable $e) {}
+
+        return null;
+    }
+}
+
+
 

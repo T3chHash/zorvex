@@ -203,6 +203,7 @@ function faoxima_schema_ready(PDO $pdo): void {
         $pdo->exec("UPDATE marzban_panel SET customvolume = '{\"f\":\"0\",\"n\":\"0\",\"n2\":\"0\"}' WHERE customvolume IS NULL OR customvolume = ''");
         $pdo->exec("UPDATE product SET hide_panel = '[]' WHERE hide_panel IS NULL OR hide_panel = '' OR hide_panel = '{}'");
         $pdo->exec("UPDATE product SET agent = 'all' WHERE agent IS NULL OR agent = ''");
+        $pdo->exec("UPDATE product SET code_product = CONCAT('p', id) WHERE code_product IS NULL OR code_product = ''");
     } catch (\Throwable $e) {}
 
     // Auto-seed default panel if none exists

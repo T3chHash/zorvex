@@ -953,6 +953,9 @@ if ($isBuyCmd && !empty($setting['active_step_note']) && $user['step'] != "statu
         $product = $userdate['code_product'];
         $product = select("product", "*", "code_product", $product);
         if ($product == false) {
+            $product = select("product", "*", "id", $userdate['code_product']);
+        }
+        if ($product == false) {
             sendmessage($from_id, "❌ خطایی رخ داده است مراحل خرید را از اول انجام دهید", $keyboard, 'html');
             step("home", $from_id);
             return;
