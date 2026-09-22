@@ -15,7 +15,7 @@
 ---
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3-777bb4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
-[![Release](https://img.shields.io/badge/Release-v2.0.1-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
+[![Release](https://img.shields.io/badge/Release-v0.0.1--beta-00f2fe?style=for-the-badge&logo=github)](https://github.com/T3chHash/zorvex/releases)
 [![Telegram Mini App](https://img.shields.io/badge/Telegram-Mini%20App%20Ready-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://telegram.org)
 [![Supported OS](https://img.shields.io/badge/Ubuntu-20.04%20%7C%2022.04%20%7C%2024.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![License](https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge)](LICENSE)
@@ -40,11 +40,11 @@
 ---
 
 <a name="-معرفی-پلتفرم-زوروکس-پرو"></a>
-## 💎 معرفی پلتفرم زوروکس پرو (نسخه ۲.۰.۱ - رفع کامل باگ افزودن محصول و کرش سرور)
+## 💎 معرفی پلتفرم زوروکس پرو (نسخه 0.0.1 بتا - پایدار، سریع و آماده انتشار عمومی)
 
 **پلتفرم زوروکس (Zorvex Pro)** نسل نوینی از سیستم‌های مدیریت، فروش و مانیتورینگ سرویس‌های وی‌پی‌ان بر بستر پیام‌رسان تلگرام است. این پلتفرم با ترکیب رابط کاربری مدرن نئونی، مینی‌اپلیکیشن مستقل تک‌صفحه‌ای (SPA) و پنل مدیریتی غنی، تمامی نیازهای یک سرور و ارائه‌دهنده سرویس اینترنت آزاد را پوشش می‌دهد.
 
-### ✨ امکانات و بهبودهای متمایز نسخه 2.0.1:
+### ✨ امکانات و بهبودهای متمایز نسخه 0.0.1 (Beta):
 1. **حل قطعی خطای ۵۰۰ و کرش کامل سرور هنگام افزودن محصول در مینی‌اپ و ربات:**
    - تعریف و تثبیت توابع سیستمی مفقود `panel_feature_enabled`، `panel_creation_limit_reached`، `panel_creation_limit_reached_unlocked`، `panel_limit_lock_acquire`، `panel_limit_lock_release` و `rx_product_allows_agent` در هسته ربات و مینی‌اپلیکیشن.
    - جلوگیری از بروز خطای کشنده PHP Fatal Error (`Call to undefined function`) هنگام فراخوانی اندپوینت‌های `countries`، `categories`، `time_ranges`، `services` و `purchase`.

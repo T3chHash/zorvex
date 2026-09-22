@@ -807,12 +807,22 @@ get_latest_version() {
 list_tags_desc() {
     local tags
     tags=$(curl -fsSL --max-time 8 "https://api.github.com/repos/${GIT_REPO}/tags" 2>/dev/null)
-    [ -z "$tags" ] && return 1
-    if command -v jq >/dev/null 2>&1; then
-        echo "$tags" | jq -r '.[].name' 2>/dev/null | sort -Vr
-    else
-        echo "$tags" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)".*/\1/' | sort -Vr
+    if [ -n "$tags" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            echo "$tags" | jq -r '.[].name' 2>/dev/null | sort -Vr
+            return 0
+        else
+            echo "$tags" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)".*/\1/' | sort -Vr
+            return 0
+        fi
     fi
+    local gtags
+    gtags=$(git ls-remote --tags --refs "https://github.com/${GIT_REPO}.git" 2>/dev/null | awk -F'/' '{print $NF}')
+    if [ -n "$gtags" ]; then
+        echo "$gtags" | sort -Vr
+        return 0
+    fi
+    return 1
 }
 
 # Choose which source to download.
