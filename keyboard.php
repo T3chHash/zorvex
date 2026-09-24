@@ -1445,33 +1445,41 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
 function KeyboardCategory($location, $agent, $backuser = "backuser")
 {
     global $pdo, $textbotlang;
-    $stmts = $pdo->prepare("SELECT category FROM product WHERE (Location = :location OR Location = '/all' OR FIND_IN_SET(:location, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)");
-    $stmts->bindValue(':location', (string)$location, PDO::PARAM_STR);
-    $stmts->bindValue(':agent', (string)$agent, PDO::PARAM_STR);
-    $stmts->execute();
+    $agentStr = !empty($agent) ? (string)$agent : 'f';
     $activeCategories = [];
-    foreach ($stmts->fetchAll(PDO::FETCH_COLUMN) as $catRaw) {
-        $parts = explode(',', (string)$catRaw);
-        foreach ($parts as $p) {
-            $cleaned = mb_strtolower(trim($p), 'UTF-8');
-            if ($cleaned !== '') $activeCategories[$cleaned] = true;
+    try {
+        $stmts = $pdo->prepare("SELECT category FROM product WHERE (Location = :location OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR :location = '/all' OR FIND_IN_SET(:location, REPLACE(Location, ' ', '')) > 0 OR Location LIKE :loc_like) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)");
+        $stmts->execute([
+            ':location' => (string)$location,
+            ':loc_like' => '%' . (string)$location . '%',
+            ':agent'    => $agentStr
+        ]);
+        foreach ($stmts->fetchAll(PDO::FETCH_COLUMN) as $catRaw) {
+            $parts = explode(',', (string)$catRaw);
+            foreach ($parts as $p) {
+                $cleaned = mb_strtolower(trim($p), 'UTF-8');
+                if ($cleaned !== '') $activeCategories[$cleaned] = true;
+            }
         }
-    }
-    $stmt = $pdo->prepare("SELECT * FROM category ORDER BY id ASC");
-    $stmt->execute();
-    $list_category = ['inline_keyboard' => []];
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $remarkLower = mb_strtolower(trim((string)$row['remark']), 'UTF-8');
-        if (empty($activeCategories[$remarkLower]))
-            continue;
-        $list_category['inline_keyboard'][] = [['text' => $row['remark'], 'callback_data' => "categorynames_" . $row['id']]];
-    }
+    } catch (\Throwable $e) {}
 
-    if (empty($list_category['inline_keyboard'])) {
-        $list_category['inline_keyboard'][] = [
-            ['text' => '📦 مشاهده همه محصولات', 'callback_data' => 'categorynames_all']
-        ];
-    }
+    $list_category = ['inline_keyboard' => []];
+    try {
+        $stmt = $pdo->query("SELECT * FROM category ORDER BY id ASC");
+        if ($stmt) {
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $remarkLower = mb_strtolower(trim((string)$row['remark']), 'UTF-8');
+                if (!empty($activeCategories) && empty($activeCategories[$remarkLower])) {
+                    continue;
+                }
+                $list_category['inline_keyboard'][] = [['text' => '📁 ' . $row['remark'], 'callback_data' => "categorynames_" . $row['id']]];
+            }
+        }
+    } catch (\Throwable $e) {}
+
+    $list_category['inline_keyboard'][] = [
+        ['text' => '📦 مشاهده همه محصولات', 'callback_data' => 'categorynames_all']
+    ];
 
     $list_category['inline_keyboard'][] = [
         ['text' => $textbotlang['keyboard']['backToPreviousMenu'] ?? 'بازگشت به منوی قبلی', "callback_data" => $backuser],
@@ -1482,12 +1490,28 @@ function KeyboardCategory($location, $agent, $backuser = "backuser")
 function keyboardTimeCategory($name_panel, $agent, $callback_data = "producttime_", $callback_data_back = "backuser", $statuscustomvolume = false, $statusbtnextend = false)
 {
     global $pdo, $textbotlang;
-    $stmt = $pdo->prepare("SELECT (Service_time) FROM product WHERE (Location = :name_panel OR Location = '/all' OR FIND_IN_SET(:name_panel, Location) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)");
-    $stmt->bindValue(':name_panel', (string)$name_panel, PDO::PARAM_STR);
-    $stmt->bindValue(':agent', (string)$agent, PDO::PARAM_STR);
-    $stmt->execute();
-    $rawTimes = array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN));
-    $rawTimes = array_values(array_unique(array_filter($rawTimes, static function($v) { return $v !== ''; })));
+    $agentStr = !empty($agent) ? (string)$agent : 'f';
+    $rawTimes = [];
+    try {
+        $stmt = $pdo->prepare("SELECT DISTINCT (Service_time) FROM product WHERE (Location = :name_panel OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR :name_panel = '/all' OR FIND_IN_SET(:name_panel, REPLACE(Location, ' ', '')) > 0 OR Location LIKE :loc_like) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)");
+        $stmt->execute([
+            ':name_panel' => (string)$name_panel,
+            ':loc_like'   => '%' . (string)$name_panel . '%',
+            ':agent'      => $agentStr
+        ]);
+        $rawTimes = array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        $rawTimes = array_values(array_unique(array_filter($rawTimes, static function($v) { return $v !== ''; })));
+    } catch (\Throwable $e) {}
+
+    if (empty($rawTimes)) {
+        try {
+            $fbStmt = $pdo->query("SELECT DISTINCT Service_time FROM product WHERE Service_time IS NOT NULL AND Service_time != ''");
+            if ($fbStmt) {
+                $rawTimes = array_map('strval', $fbStmt->fetchAll(PDO::FETCH_COLUMN));
+                $rawTimes = array_values(array_unique(array_filter($rawTimes, static function($v) { return $v !== ''; })));
+            }
+        } catch (\Throwable $e) {}
+    }
 
     $monthkeyboard = ['inline_keyboard' => []];
 
@@ -1531,11 +1555,10 @@ function keyboardTimeCategory($name_panel, $agent, $callback_data = "producttime
         ];
     }
 
-    if (empty($monthkeyboard['inline_keyboard'])) {
-        $monthkeyboard['inline_keyboard'][] = [
-            ['text' => '❌ محصولی یافت نشد', 'callback_data' => 'none_product']
-        ];
-    }
+    // Always provide view all products button
+    $monthkeyboard['inline_keyboard'][] = [
+        ['text' => '📦 مشاهده همه پلن‌ها و سرویس‌ها', 'callback_data' => "{$callback_data}all"]
+    ];
 
     if ($statusbtnextend)
         $monthkeyboard['inline_keyboard'][] = [['text' => $textbotlang['keyboard']['renewCurrentPlan'] ?? 'تمدید سرویس فعلی', 'callback_data' => "exntedagei"]];

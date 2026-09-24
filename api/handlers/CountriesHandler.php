@@ -13,11 +13,11 @@ final class CountriesHandler extends BaseHandler
 
         global $textbotlang;
 
-        $userAgent = $this->user['agent'] ?? 'f';
+        $userAgent = !empty($this->user['agent']) ? $this->user['agent'] : 'f';
         $rows = FaoximaDb::fetchAll(
             "SELECT * FROM marzban_panel
               WHERE status = 'active'
-                AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, agent) > 0)
+                AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)
                 AND (
                     type != 'Manualsale'
                     OR EXISTS (
@@ -28,6 +28,15 @@ final class CountriesHandler extends BaseHandler
                 )",
             [':agent' => $userAgent]
         );
+
+        if (empty($rows)) {
+            try {
+                if (function_exists('zorvex_resolve_panel_for_product')) {
+                    zorvex_resolve_panel_for_product();
+                }
+                $rows = FaoximaDb::fetchAll("SELECT * FROM marzban_panel WHERE status != 'disable' OR status IS NULL");
+            } catch (\Throwable $e) {}
+        }
 
         $isNoteGlobal = false;
         if (($this->setting['statusnamecustom'] ?? '') === 'onnamecustom') {

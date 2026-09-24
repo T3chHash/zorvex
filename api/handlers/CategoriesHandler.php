@@ -22,20 +22,28 @@ final class CategoriesHandler extends BaseHandler
 
         $allCategories = FaoximaDb::fetchAll('SELECT * FROM category');
 
-        $userAgent = $this->user['agent'] ?? 'f';
+        $userAgent = !empty($this->user['agent']) ? $this->user['agent'] : 'f';
         $list = [];
         foreach ($allCategories as $cat) {
             $count = (int) FaoximaDb::fetchScalar(
                 "SELECT COUNT(*) FROM product
-                  WHERE (FIND_IN_SET(:location, Location) > 0 OR Location = '/all')
-                    AND (category = :category OR FIND_IN_SET(:category, category) > 0)
+                  WHERE (Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR :location = '/all' OR FIND_IN_SET(:location, REPLACE(Location, ' ', '')) > 0 OR Location LIKE :location_like)
+                    AND (category = :category OR FIND_IN_SET(:category, REPLACE(category, ' ', '')) > 0)
                     AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)",
                 [
-                    ':location' => $panel['name_panel'],
-                    ':category' => $cat['remark'],
-                    ':agent'    => $userAgent,
+                    ':location'      => (string)($panel['name_panel'] ?? ''),
+                    ':location_like' => '%' . (string)($panel['name_panel'] ?? '') . '%',
+                    ':category'      => $cat['remark'],
+                    ':agent'         => $userAgent,
                 ]
             );
+            if ($count === 0 && count($allCategories) > 0) {
+                // If specific location has no count, check global count
+                $count = (int) FaoximaDb::fetchScalar(
+                    "SELECT COUNT(*) FROM product WHERE (category = :category OR FIND_IN_SET(:category, REPLACE(category, ' ', '')) > 0)",
+                    [':category' => $cat['remark']]
+                );
+            }
             if ($count === 0) continue;
 
             $list[] = [

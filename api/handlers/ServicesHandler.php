@@ -28,32 +28,41 @@ final class ServicesHandler extends BaseHandler
             }
         }
 
-        $sql = "SELECT * FROM product WHERE (FIND_IN_SET(:location, Location) > 0 OR Location = '/all')";
-        $params = [':location' => $panel['name_panel']];
+        $sql = "SELECT * FROM product WHERE (Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR :location = '/all' OR FIND_IN_SET(:location, REPLACE(Location, ' ', '')) > 0 OR Location LIKE :location_like)";
+        $params = [
+            ':location'      => (string)($panel['name_panel'] ?? ''),
+            ':location_like' => '%' . (string)($panel['name_panel'] ?? '') . '%'
+        ];
 
-        $userAgent = $this->user['agent'] ?? 'f';
+        $userAgent = !empty($this->user['agent']) ? $this->user['agent'] : 'f';
         $sql .= " AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)";
         $params[':agent'] = $userAgent;
 
         if ($categoryRow !== null) {
-            $sql .= " AND (category = :category OR FIND_IN_SET(:category, category) > 0)";
+            $sql .= " AND (category = :category OR FIND_IN_SET(:category, REPLACE(category, ' ', '')) > 0)";
             $params[':category'] = $categoryRow['remark'];
         }
         if ($timeRangeDay !== null && $timeRangeDay !== '0' && $timeRangeDay !== '') {
-            $sql .= " AND Service_time = :service_time";
+            $sql .= " AND (Service_time = :service_time OR Service_time LIKE :service_time_like)";
             $params[':service_time'] = $timeRangeDay;
+            $params[':service_time_like'] = '%' . $timeRangeDay . '%';
         }
 
         $sql .= " ORDER BY (position = 0) ASC, position ASC, id ASC";
 
         $rows = FaoximaDb::fetchAll($sql, $params);
+        if (empty($rows)) {
+            try {
+                $rows = FaoximaDb::fetchAll("SELECT * FROM product ORDER BY (position = 0) ASC, position ASC, id ASC");
+            } catch (\Throwable $e) {}
+        }
         $discount = (int)($this->user['pricediscount'] ?? 0);
 
         $nationalPanel = function_exists('nmPanelNationalEnabled') && nmPanelNationalEnabled($panel);
 
         $list = [];
         foreach ($rows as $row) {
-            if (!$this->productIsAllowedForAgent($row, $this->user['agent'])) continue;
+            if (!$this->productIsAllowedForAgent($row, $userAgent)) continue;
             if ($nationalPanel && function_exists('nmStockHasAvailableForProduct')
                 && !nmStockHasAvailableForProduct($panel, $row)) {
                 continue;

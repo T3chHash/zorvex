@@ -935,11 +935,12 @@ function DirectPayment($order_id, $image = 'images.jpg')
         if ($get_invoice['Status'] == "active") {
             return;
         }
-        $stmt = $pdo->prepare("SELECT * FROM product WHERE name_product = :name_product AND (Location = :Service_location  or Location = '/all')");
-        $stmt->bindParam(':name_product', $get_invoice['name_product'], PDO::PARAM_STR);
-        $stmt->bindParam(':Service_location', $get_invoice['Service_location'], PDO::PARAM_STR);
-        $stmt->execute();
-        $info_product = $stmt->fetch(PDO::FETCH_ASSOC);
+        $info_product = zorvex_get_product($get_invoice['name_product'], $get_invoice['Service_location']);
+        if (!$info_product) {
+            $stmt = $pdo->prepare("SELECT * FROM product WHERE name_product = :name_product LIMIT 1");
+            $stmt->execute([':name_product' => $get_invoice['name_product']]);
+            $info_product = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
         if ($get_invoice['name_product'] == $textbotlang['users']['customSellVolume']['btnVolume'] || $get_invoice['name_product'] == $textbotlang['users']['customSellVolume']['btnService']) {
             $info_product['data_limit_reset'] = "no_reset";
             $info_product['Volume_constraint'] = $get_invoice['Volume'];
@@ -1182,9 +1183,7 @@ function DirectPayment($order_id, $image = 'images.jpg')
             $prodcut['Service_time'] = $service_other['Service_time'];
             $prodcut['Volume_constraint'] = $service_other['volumebuy'];
         } else {
-            $stmt = $pdo->prepare("SELECT * FROM product WHERE (Location = :mp2 OR Location = '/all') AND agent= :mp3 AND code_product = :mp4");
-            $stmt->execute([':mp2' => $nameloc['Service_location'], ':mp3' => $Balance_id['agent'], ':mp4' => $codeproduct]);
-            $prodcut = $stmt->fetch(PDO::FETCH_ASSOC);
+            $prodcut = zorvex_get_product($codeproduct, $nameloc['Service_location']);
         }
         if ($nameloc['name_product'] == $textbotlang['common']['labels']['testServiceFn']) {
             update("invoice", "name_product", $prodcut['name_product'], "id_invoice", $nameloc['id_invoice']);
@@ -3105,8 +3104,8 @@ if (!function_exists('zorvex_get_product')) {
         // 1. If preferredPanel provided, try matching product within that location
         if (!empty($preferredPanel)) {
             try {
-                $stmt = $pdo->prepare("SELECT * FROM product WHERE (code_product = :cid OR id = :cid) AND (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0) LIMIT 1");
-                $stmt->execute([':cid' => $target, ':loc' => (string)$preferredPanel]);
+                $stmt = $pdo->prepare("SELECT * FROM product WHERE (code_product = :cid OR id = :cid OR name_product = :cid) AND (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR :loc = '/all' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0 OR Location LIKE :loc_like) LIMIT 1");
+                $stmt->execute([':cid' => $target, ':loc' => (string)$preferredPanel, ':loc_like' => '%' . (string)$preferredPanel . '%']);
                 $row = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($row && isset($row['price_product'])) {
                     return $row;
@@ -3114,9 +3113,9 @@ if (!function_exists('zorvex_get_product')) {
             } catch (\Throwable $e) {}
         }
 
-        // 2. Direct lookup by code_product or numeric id
+        // 2. Direct lookup by code_product, numeric id or name_product
         try {
-            $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :cid OR id = :cid LIMIT 1");
+            $stmt = $pdo->prepare("SELECT * FROM product WHERE code_product = :cid OR id = :cid OR name_product = :cid LIMIT 1");
             $stmt->execute([':cid' => $target]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['price_product'])) {

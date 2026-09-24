@@ -36,12 +36,23 @@ final class TimeRangesHandler extends BaseHandler
             FaoximaResponse::ok([]);
         }
 
-        $userAgent = $this->user['agent'] ?? 'f';
+        $userAgent = !empty($this->user['agent']) ? $this->user['agent'] : 'f';
         $rawTimes = array_map('strval', array_column(FaoximaDb::fetchAll(
-            "SELECT Service_time FROM product WHERE (FIND_IN_SET(:location, Location) > 0 OR Location = '/all') AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)",
-            [':location' => $panel['name_panel'], ':agent' => $userAgent]
+            "SELECT DISTINCT Service_time FROM product WHERE (Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR :location = '/all' OR FIND_IN_SET(:location, REPLACE(Location, ' ', '')) > 0 OR Location LIKE :location_like) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)",
+            [
+                ':location'      => (string)($panel['name_panel'] ?? ''),
+                ':location_like' => '%' . (string)($panel['name_panel'] ?? '') . '%',
+                ':agent'         => $userAgent
+            ]
         ), 'Service_time'));
         $rawTimes = array_values(array_unique(array_filter($rawTimes, static function($v) { return $v !== ''; })));
+
+        if (empty($rawTimes)) {
+            try {
+                $rawTimes = array_map('strval', array_column(FaoximaDb::fetchAll("SELECT DISTINCT Service_time FROM product WHERE Service_time IS NOT NULL AND Service_time != ''"), 'Service_time'));
+                $rawTimes = array_values(array_unique(array_filter($rawTimes, static function($v) { return $v !== ''; })));
+            } catch (\Throwable $e) {}
+        }
 
         $list = [];
         $matchedAliases = [];

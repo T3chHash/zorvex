@@ -3657,7 +3657,11 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     }
     $userAgent = !empty($user['agent']) ? $user['agent'] : 'f';
     $catFilter = "";
-    $queryParams = [':loc' => $userdate['name_panel'], ':agent' => $userAgent];
+    $queryParams = [
+        ':loc'      => $userdate['name_panel'],
+        ':loc_like' => '%' . $userdate['name_panel'] . '%',
+        ':agent'    => $userAgent
+    ];
 
     if ($catId !== 'all') {
         $catRow = select("category", "remark", "id", $catId, "select");
@@ -3668,12 +3672,12 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         }
     }
 
-    if (isset($userdate['monthproduct'])) {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0){$catFilter} AND (Service_time = :stime OR Service_time LIKE :stimelike)";
+    if (isset($userdate['monthproduct']) && $userdate['monthproduct'] !== 'all') {
+        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR :loc = '/all' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0 OR Location LIKE :loc_like) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0){$catFilter} AND (Service_time = :stime OR Service_time LIKE :stimelike)";
         $queryParams[':stime'] = $userdate['monthproduct'];
         $queryParams[':stimelike'] = '%' . $userdate['monthproduct'] . '%';
     } else {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0){$catFilter}";
+        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR :loc = '/all' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0 OR Location LIKE :loc_like) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0){$catFilter}";
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
     if (empty($marzban_list_get)) {
@@ -3716,21 +3720,38 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
             savedata('save', 'name_panel', $marzban_list_get['name_panel']);
         }
     }
+    $userAgent = !empty($user['agent']) ? $user['agent'] : 'f';
     if ($setting['statuscategorygenral'] == "oncategorys") {
         savedata("save", "monthproduct", $monthenumber);
         $stmt = $pdo->prepare("SELECT * FROM marzban_panel WHERE status = 'active' AND (agent = :mp3 OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:mp3, agent) > 0)");
-        $stmt->execute([':mp3' => $user['agent']]);
+        $stmt->execute([':mp3' => $userAgent]);
         $count_panel = $stmt->rowCount();
         if ($count_panel == 1) {
             $back = "buybacktow";
         } else {
             $back = "location_{$marzban_list_get['code_panel']}";
         }
-        Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($marzban_list_get['name_panel'], $user['agent'], $back));
+        Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($marzban_list_get['name_panel'], $userAgent, $back));
     } else {
-        $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0) AND (Service_time = :stime OR Service_time LIKE :stimelike)";
-        $queryParams = [':loc' => $userdate['name_panel'], ':agent' => $user['agent'], ':stime' => $monthenumber, ':stimelike' => '%' . $monthenumber . '%'];
-        $statuscustomvolume = json_decode($marzban_list_get['customvolume'] ?? '[]', true)[$user['agent']] ?? null;
+        if ($monthenumber === 'all') {
+            $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR :loc = '/all' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0 OR Location LIKE :loc_like) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)";
+            $queryParams = [
+                ':loc'      => $userdate['name_panel'],
+                ':loc_like' => '%' . $userdate['name_panel'] . '%',
+                ':agent'    => $userAgent
+            ];
+        } else {
+            $query = "SELECT * FROM product WHERE (Location = :loc OR Location = '/all' OR Location = 'all' OR Location IS NULL OR Location = '' OR :loc = '/all' OR FIND_IN_SET(:loc, REPLACE(Location, ' ', '')) > 0 OR Location LIKE :loc_like) AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0) AND (Service_time = :stime OR Service_time LIKE :stimelike)";
+            $queryParams = [
+                ':loc'      => $userdate['name_panel'],
+                ':loc_like' => '%' . $userdate['name_panel'] . '%',
+                ':agent'    => $userAgent,
+                ':stime'    => $monthenumber,
+                ':stimelike'=> '%' . $monthenumber . '%'
+            ];
+        }
+        $cvDecoded = !empty($marzban_list_get['customvolume']) ? json_decode($marzban_list_get['customvolume'], true) : [];
+        $statuscustomvolume = is_array($cvDecoded) ? ($cvDecoded[$userAgent] ?? null) : null;
         if (in_array(usernameMethodKey($marzban_list_get['MethodUsername'] ?? ''), ['customUsername', 'customUsernameRandom'], true)) {
             $datakeyboard = "prodcutservices_";
         } else {

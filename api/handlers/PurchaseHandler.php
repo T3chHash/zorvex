@@ -43,18 +43,17 @@ final class PurchaseHandler extends BaseHandler
             if ($serviceId === '') {
                 FaoximaResponse::badRequest('service_id is required');
             }
-            $product = FaoximaDb::fetchOne(
-                "SELECT * FROM product
-                  WHERE code_product = :code
-                    AND (FIND_IN_SET(:location, Location) > 0 OR Location = '/all')
-                    AND (agent = :agent OR agent IN ('all', 'allusers', '') OR agent IS NULL OR FIND_IN_SET(:agent, REPLACE(agent, ' ', '')) > 0)
-                  LIMIT 1",
-                [
-                    ':code' => $serviceId,
-                    ':location' => (string)($panel['name_panel'] ?? ''),
-                    ':agent' => (string)($this->user['agent'] ?? 'f'),
-                ]
-            );
+            if (function_exists('zorvex_get_product')) {
+                $product = zorvex_get_product($serviceId, $panel['name_panel'] ?? null);
+            }
+            if (empty($product)) {
+                $product = FaoximaDb::fetchOne(
+                    "SELECT * FROM product
+                      WHERE (code_product = :code OR id = :code OR name_product = :code)
+                      LIMIT 1",
+                    [':code' => $serviceId]
+                );
+            }
         } else {
             $product = $this->buildCustomProduct($panel, $customService);
         }
